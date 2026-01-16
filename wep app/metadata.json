@@ -1,0 +1,5 @@
+{
+  "name": "TransportScheduler",
+  "description": "A comprehensive transport management system allowing admins to manage shift schedules and users to perform self check-ins. Features AI-powered schedule analysis.",
+  "requestFramePermissions": []
+}
