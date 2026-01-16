@@ -14,6 +14,44 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
 
+    void verifyAdminPassword(VoidCallback onSuccess) {
+       final passwordController = TextEditingController();
+       showDialog(
+         context: context,
+         builder: (ctx) => AlertDialog(
+           title: const Text("Enter Admin Password"),
+           content: TextField(
+             controller: passwordController,
+             obscureText: true,
+             autofocus: true,
+             decoration: const InputDecoration(
+               hintText: "Password",
+               border: OutlineInputBorder(),
+             ),
+           ),
+           actions: [
+             TextButton(
+               onPressed: () => Navigator.pop(ctx),
+               child: const Text("Cancel"),
+             ),
+             ElevatedButton(
+               onPressed: () {
+                 if (passwordController.text == "1234") {
+                   Navigator.pop(ctx);
+                   onSuccess();
+                 } else {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                     const SnackBar(content: Text("Incorrect Password!"), backgroundColor: Colors.red),
+                   );
+                 }
+               },
+               child: const Text("Login"),
+             ),
+           ],
+         ),
+       );
+    }
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -37,20 +75,12 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(width: 12),
-            const Text(
-              'Transport Scheduler',
-              style: TextStyle(
-                color: Color(0xFF1E293B), // Slate 800
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
+
           ],
         ),
         actions: [
           _ModeToggleButton(
-            label: 'Driver Mode',
+            label: 'Driver',
             icon: LucideIcons.bus,
             isActive: appState.viewMode == AppViewMode.USER,
             onTap: () => appState.setViewMode(AppViewMode.USER),
@@ -60,7 +90,12 @@ class HomeScreen extends StatelessWidget {
             label: 'Admin',
             icon: LucideIcons.shield,
             isActive: appState.viewMode == AppViewMode.ADMIN,
-            onTap: () => appState.setViewMode(AppViewMode.ADMIN),
+            onTap: () {
+                 if (appState.viewMode == AppViewMode.ADMIN) return;
+                 verifyAdminPassword(() {
+                    appState.setViewMode(AppViewMode.ADMIN);
+                 });
+            },
           ),
           const SizedBox(width: 16),
         ],
@@ -77,8 +112,6 @@ class HomeScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                     _HeaderSection(appState: appState),
-                    const SizedBox(height: 24),
-                    StatsOverview(employees: appState.employees),
                     const SizedBox(height: 24),
                     appState.viewMode == AppViewMode.ADMIN
                         ? const AdminPanel()
@@ -102,47 +135,36 @@ class _HeaderSection extends StatelessWidget {
              mainAxisAlignment: MainAxisAlignment.spaceBetween,
              crossAxisAlignment: CrossAxisAlignment.end,
              children: [
-                 Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                        Text(
-                            isAdmin ? 'Transport Management' : 'Driver Attendance',
-                            style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF0F172A), // Slate 900
-                            ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                            isAdmin 
-                              ? 'Manage roster, view statistics, and optimize routes.'
-                              : 'Mark passenger attendance and pickup status.',
-                             style: const TextStyle(color: Color(0xFF64748B)), // Slate 500
-                        ),
-                    ],
+                 Expanded(
+                   child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                          Text(
+                              isAdmin ? 'Transport Management' : 'Driver Attendance',
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A), // Slate 900
+                              ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                              isAdmin 
+                                ? 'Manage roster, view statistics, and optimize routes.'
+                                : 'Mark passenger attendance and pickup status.',
+                               maxLines: 2,
+                               overflow: TextOverflow.ellipsis,
+                               style: const TextStyle(
+                                 color: Color(0xFF64748B), // Slate 500
+                                 fontSize: 13,
+                               ), 
+                          ),
+                      ],
+                   ),
                  ),
-                 if (isAdmin)
-                    TextButton.icon(
-                        onPressed: () {
-                           showDialog(context: context, builder: (ctx) => AlertDialog(
-                               title: const Text("Reset Data?"),
-                               content: const Text("This cannot be undone."),
-                               actions: [
-                                   TextButton(onPressed: ()=>Navigator.pop(ctx), child: const Text("Cancel")),
-                                   TextButton(
-                                       onPressed: () {
-                                           appState.resetData();
-                                           Navigator.pop(ctx);
-                                       }, 
-                                       child: const Text("Reset", style: TextStyle(color: Colors.red))
-                                   )
-                               ]
-                           ));
-                        },
-                        icon: const Icon(LucideIcons.refreshCw, size: 14, color: Colors.grey),
-                        label: const Text("Reset Data", style: TextStyle(color: Colors.grey, fontSize: 12)),
-                    )
+
              ],
          );
     }

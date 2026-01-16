@@ -148,181 +148,190 @@ class _UserCheckInState extends State<UserCheckIn> {
                child: Center(child: Text("No passengers found.", style: TextStyle(color: Colors.grey))),
              )
         else
-            ListView.separated(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: sortedKeys.length,
-                separatorBuilder: (_,__) => const SizedBox(height: 16),
-                itemBuilder: (ctx, index) {
-                    final key = sortedKeys[index];
-                    final employees = groups[key]!;
-                    return _GroupCard(
-                        title: key, 
-                        employees: employees, 
-                        weekIndex: selectedWeek,
-                        onStatusChange: (id, status) => appState.updateEmployeeStatus(id, selectedWeek, status),
-                    );
-                }
+            ListView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              itemCount: sortedKeys.length,
+              itemBuilder: (ctx, index) {
+                final key = sortedKeys[index];
+                final employees = groups[key]!;
+                
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12.0),
+                      child: Row(
+                        children: [
+                          const Icon(LucideIcons.clock, size: 16, color: Colors.blue),
+                          const SizedBox(width: 8),
+                          Text("$key Shift", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 16)),
+                          const SizedBox(width: 12),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                            child: Text("${employees.length} Pax", style: TextStyle(fontSize: 11, color: Colors.blue.shade800, fontWeight: FontWeight.bold)),
+                          ),
+                          const Spacer(),
+                          Expanded(child: Container(height: 1, color: Colors.blue.withOpacity(0.2))),
+                        ],
+                      ),
+                    ),
+
+                    // Items
+                    ...employees.map((emp) {
+                      final companyColor = _getCompanyColor(emp.company);
+                      final status = emp.weeklyStatus.length > selectedWeek ? emp.weeklyStatus[selectedWeek] : TransportStatus.PENDING;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Container(
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade100),
+                            boxShadow: [
+                              BoxShadow(color: Colors.grey.shade100, blurRadius: 4, offset: const Offset(0, 2))
+                            ]
+                          ),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                // Color Strip
+                                Container(width: 6, color: companyColor),
+                                
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            // Time Pill
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue.shade50,
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                emp.time, 
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold, 
+                                                  fontFamily: 'monospace',
+                                                  color: Colors.blue.shade800,
+                                                  fontSize: 13
+                                                )
+                                              ),
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Expanded(child: Text(emp.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                                                      const SizedBox(width: 8),
+                                                      Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                                          color: Colors.grey[100],
+                                                          child: Text("#${emp.serialNumber}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                                                      )
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 6),
+                                                  Row(
+                                                    children: [
+                                                      const Icon(LucideIcons.mapPin, size: 12, color: Colors.grey),
+                                                      const SizedBox(width: 4),
+                                                      Expanded(child: Text(emp.pickupLocation, style: TextStyle(fontSize: 13, color: Colors.grey[600]), overflow: TextOverflow.ellipsis)),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Row(
+                                                    children: [
+                                                      Icon(LucideIcons.building, size: 12, color: companyColor.withOpacity(0.7)),
+                                                      const SizedBox(width: 4),
+                                                      Text(emp.company, style: TextStyle(fontSize: 12, color: companyColor, fontWeight: FontWeight.bold)),
+                                                    ],
+                                                  ),
+                                                ],
+                                              ),
+                                            )
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        // Actions
+                                        Row(
+                                          children: [
+                                              Expanded(
+                                                  child: _StatusBtn(
+                                                      label: "Ok", 
+                                                      icon: LucideIcons.check, 
+                                                      isActive: status == TransportStatus.DROPPED_OFF, 
+                                                      color: Colors.green,
+                                                      onTap: () => appState.updateEmployeeStatus(emp.id, selectedWeek, TransportStatus.DROPPED_OFF)
+                                                  ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                               Expanded(
+                                                  child: _StatusBtn(
+                                                      label: "Absent", 
+                                                      icon: LucideIcons.x, 
+                                                      isActive: status == TransportStatus.ABSENT, 
+                                                      color: Colors.red,
+                                                      onTap: () => appState.updateEmployeeStatus(emp.id, selectedWeek, TransportStatus.ABSENT)
+                                                  ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              // Self Travel Button
+                                               Expanded(
+                                                 child: _StatusBtn(
+                                                    label: "Self", 
+                                                    icon: LucideIcons.car, 
+                                                    isActive: status == TransportStatus.SELF_TRAVEL, 
+                                                    color: Colors.grey,
+                                                    onTap: () => appState.updateEmployeeStatus(emp.id, selectedWeek, TransportStatus.SELF_TRAVEL)
+                                                 ),
+                                               )
+                                          ],
+                                        )
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ],
+                );
+              },
             )
       ],
     );
   }
-}
 
-class _GroupCard extends StatelessWidget {
-    final String title;
-    final List<Employee> employees;
-    final int weekIndex;
-    final Function(String, TransportStatus) onStatusChange;
-
-    const _GroupCard({required this.title, required this.employees, required this.weekIndex, required this.onStatusChange});
-
-    @override
-    Widget build(BuildContext context) {
-        return Container(
-            decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey.shade200),
-            ),
-            clipBehavior: Clip.hardEdge,
-            child: Column(
-                children: [
-                    Container(
-                        padding: const EdgeInsets.all(12),
-                        color: Colors.blue.shade50,
-                        child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                                Row(
-                                    children: [
-                                        const Icon(LucideIcons.clock, size: 16, color: Colors.blue),
-                                        const SizedBox(width: 8),
-                                        Text("$title Shift", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue)),
-                                    ],
-                                ),
-                                Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                    decoration: BoxDecoration(color: Colors.blue.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
-                                    child: Text("${employees.length} Pax", style: TextStyle(fontSize: 10, color: Colors.blue.shade800, fontWeight: FontWeight.bold)),
-                                )
-                            ],
-                        ),
-                    ),
-                    ListView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: employees.length,
-                        itemBuilder: (ctx, idx) {
-                            final emp = employees[idx];
-                            final status = emp.weeklyStatus.length > weekIndex ? emp.weeklyStatus[weekIndex] : TransportStatus.PENDING;
-                            
-                            return Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                    border: Border(bottom: BorderSide(color: Colors.grey.shade100))
-                                ),
-                                child: Column(
-                                    children: [
-                                        Row(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                                Container(
-                                                    padding: const EdgeInsets.all(8),
-                                                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                                                    child: Column(
-                                                        children: [
-                                                            Text(emp.time, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                                            const Text("Time", style: TextStyle(fontSize: 10, color: Colors.grey, fontWeight: FontWeight.bold)),
-                                                        ],
-                                                    ),
-                                                ),
-                                                const SizedBox(width: 12),
-                                                Expanded(
-                                                    child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        children: [
-                                                            Row(
-                                                                children: [
-                                                                    Expanded(child: Text(emp.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
-                                                                    Container(
-                                                                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                                                        color: Colors.grey[100],
-                                                                        child: Text("#${emp.serialNumber}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                                                                    )
-                                                                ],
-                                                            ),
-                                                            const SizedBox(height: 4),
-                                                            Row(
-                                                                children: [
-                                                                    const Icon(LucideIcons.mapPin, size: 12, color: Colors.blue),
-                                                                    const SizedBox(width: 4),
-                                                                    Text(emp.pickupLocation, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                                                                    const SizedBox(width: 8),
-                                                                    Container(width: 4, height: 4, decoration: const BoxDecoration(shape: BoxShape.circle, color: Colors.grey)),
-                                                                    const SizedBox(width: 8),
-                                                                    Text(emp.company, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-                                                                ],
-                                                            )
-                                                        ],
-                                                    ),
-                                                )
-                                            ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Row(
-                                            children: [
-                                                Expanded(
-                                                    child: _StatusBtn(
-                                                        label: "Ok", 
-                                                        icon: LucideIcons.check, 
-                                                        isActive: status == TransportStatus.DROPPED_OFF, 
-                                                        color: Colors.green,
-                                                        onTap: () => onStatusChange(emp.id, TransportStatus.DROPPED_OFF)
-                                                    ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                 Expanded(
-                                                    child: _StatusBtn(
-                                                        label: "Absent", 
-                                                        icon: LucideIcons.x, 
-                                                        isActive: status == TransportStatus.ABSENT, 
-                                                        color: Colors.red,
-                                                        onTap: () => onStatusChange(emp.id, TransportStatus.ABSENT)
-                                                    ),
-                                                ),
-                                                const SizedBox(width: 8),
-                                                // Self Travel Button
-                                                 InkWell(
-                                                     onTap: () => onStatusChange(emp.id, TransportStatus.SELF_TRAVEL),
-                                                     child: Container(
-                                                         padding: const EdgeInsets.all(10),
-                                                         decoration: BoxDecoration(
-                                                             color: status == TransportStatus.SELF_TRAVEL ? Colors.grey[800] : Colors.white,
-                                                             border: Border.all(color: Colors.grey.shade300),
-                                                             borderRadius: BorderRadius.circular(8)
-                                                         ),
-                                                         child: Text(
-                                                             "Self", 
-                                                             style: TextStyle(
-                                                                 fontWeight: FontWeight.bold, 
-                                                                 color: status == TransportStatus.SELF_TRAVEL ? Colors.white : Colors.grey[600],
-                                                                 fontSize: 12
-                                                             )
-                                                         ),
-                                                     ),
-                                                 )
-                                            ],
-                                        )
-                                    ],
-                                ),
-                            );
-                        }
-                    )
-                ],
-            )
-        );
-    }
+  Color _getCompanyColor(String company) {
+    const colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.redAccent,
+    ];
+    return colors[company.hashCode.abs() % colors.length];
+  }
 }
 
 class _StatusBtn extends StatelessWidget {
@@ -336,27 +345,29 @@ class _StatusBtn extends StatelessWidget {
 
     @override
     Widget build(BuildContext context) {
+        final activeColor = color == Colors.grey ? Colors.grey[800]! : color;
+        
         return InkWell(
             onTap: onTap,
             borderRadius: BorderRadius.circular(8),
             child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                    color: isActive ? color : Colors.white,
-                    border: Border.all(color: isActive ? color : Colors.grey.shade300),
+                    color: isActive ? activeColor : Colors.white,
+                    border: Border.all(color: isActive ? activeColor : Colors.grey.shade300),
                     borderRadius: BorderRadius.circular(8),
-                    boxShadow: isActive ? [BoxShadow(color: color.withOpacity(0.3), blurRadius: 4, offset: const Offset(0,2))] : []
+                    boxShadow: isActive ? [BoxShadow(color: activeColor.withOpacity(0.3), blurRadius: 4, offset: const Offset(0,2))] : []
                 ),
                 child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                        Icon(icon, size: 16, color: isActive ? Colors.white : Colors.grey[600]),
+                        Icon(icon, size: 14, color: isActive ? Colors.white : Colors.grey[600]),
                         const SizedBox(width: 6),
                         Text(label, style: TextStyle(
                             fontWeight: FontWeight.bold, 
                             color: isActive ? Colors.white : Colors.grey[600],
-                            fontSize: 13
+                            fontSize: 12
                         ))
                     ],
                 ),

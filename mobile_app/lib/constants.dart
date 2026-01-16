@@ -4,6 +4,25 @@ import 'models/employee.dart';
 
 const uuid = Uuid();
 
+const List<String> PICKUP_LOCATIONS = [
+  'Eki',
+  'Kodomo',
+  'Rokumachi', 
+  'Shi-mae',
+  'Eki Cycle Park',
+  'Apart',
+  'Self',
+];
+
+const List<String> COMPANIES = [
+  'Dai 1',
+  'Dai 2',
+  'Dai 3',
+  'Akagi',
+  'Haga-A',
+  'Haga-B',
+];
+
 List<TransportStatus> defaultWeeks([TransportStatus initialStatus = TransportStatus.PENDING]) {
   final weeks = List.filled(5, TransportStatus.PENDING);
   weeks[0] = initialStatus;

@@ -2,8 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/employee.dart';
 import '../providers/app_state.dart';
+import 'edit_employee_screen.dart';
 
 
 class AdminPanel extends StatefulWidget {
@@ -16,49 +18,103 @@ class AdminPanel extends StatefulWidget {
 class _AdminPanelState extends State<AdminPanel> {
   DayOfWeek selectedDay = DayOfWeek.Monday;
 
+  Color _getCompanyColor(String company) {
+    const colors = [
+      Colors.blue,
+      Colors.green,
+      Colors.orange,
+      Colors.purple,
+      Colors.teal,
+      Colors.pink,
+      Colors.indigo,
+      Colors.redAccent,
+    ];
+    return colors[company.hashCode.abs() % colors.length];
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final data = appState.employees.where((e) => e.day == selectedDay).toList();
     data.sort((a,b) => a.time.compareTo(b.time));
 
+    // Grouping Logic
+    final groups = <String, List<Employee>>{};
+    for(var e in data) {
+        final hour = e.time.split(':')[0];
+        final key = "$hour:00 - $hour:59";
+        groups.putIfAbsent(key, () => []).add(e);
+    }
+    final sortedKeys = groups.keys.toList()..sort();
+
     return Column(
       children: [
         // Day Selector
-        SingleChildScrollView(
+        SizedBox(
+          height: 60,
+          child: ListView.separated(
             scrollDirection: Axis.horizontal,
-            child: Row(
-                children: DayOfWeek.values.map((day) {
-                final isSelected = day == selectedDay;
-                return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ActionChip(
-                    label: Text(day.name),
-                    backgroundColor: isSelected ? const Color(0xFF1E293B) : Colors.grey[50],
-                    labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.grey[600]),
-                    onPressed: () => setState(() => selectedDay = day),
-                    side: BorderSide.none,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: DayOfWeek.values.length,
+            separatorBuilder: (_,__) => const SizedBox(width: 8),
+            itemBuilder: (context, index) {
+              final day = DayOfWeek.values[index];
+              final isSelected = day == selectedDay;
+              
+              return GestureDetector(
+                onTap: () => setState(() => selectedDay = day),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: isSelected ? Theme.of(context).primaryColor : Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? Theme.of(context).primaryColor : Colors.grey.shade200
                     ),
-                );
-                }).toList(),
-            ),
+                    boxShadow: isSelected ? [
+                      BoxShadow(color: Theme.of(context).primaryColor.withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))
+                    ] : [],
+                  ),
+                  child: Text(
+                    day.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.white : Colors.grey.shade600
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
         ),
-        const SizedBox(height: 16),
+        
+        const SizedBox(height: 24),
         
         // Header Actions
         Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-                Expanded(child: Text("Schedule: ${selectedDay.name}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16))),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Schedule", style: TextStyle(fontSize: 12, color: Colors.grey[600], fontWeight: FontWeight.bold)),
+                    Text(selectedDay.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                  ],
+                ),
                 ElevatedButton.icon(
-                    onPressed: () => _showEditDialog(context, null, appState),
-                    icon: const Icon(LucideIcons.plus, size: 16),
+                    onPressed: () => Navigator.push(
+                        context, 
+                        MaterialPageRoute(builder: (_) => EditEmployeeScreen(selectedDay: selectedDay))
+                    ),
+                    icon: const Icon(FontAwesomeIcons.plus, size: 14),
                     label: const Text("Add Row"),
                     style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                     ),
                 )
             ],
@@ -67,132 +123,211 @@ class _AdminPanelState extends State<AdminPanel> {
 
         // List
         if (data.isEmpty)
-             const Padding(
-               padding: EdgeInsets.all(32.0),
-               child: Center(child: Text("No shifts scheduled.", style: TextStyle(color: Colors.grey))),
+             Padding(
+               padding: const EdgeInsets.all(32.0),
+               child: Column(
+                 children: [
+                   Icon(FontAwesomeIcons.calendarXmark, size: 48, color: Colors.grey[300]),
+                   const SizedBox(height: 16),
+                   const Text("No shifts scheduled.", style: TextStyle(color: Colors.grey)),
+                 ],
+               ),
              )
         else
             ListView.builder(
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
-                itemCount: data.length,
+                padding: const EdgeInsets.only(bottom: 24),
+                itemCount: sortedKeys.length,
                 itemBuilder: (ctx, index) {
-                    final emp = data[index];
-                    return Card(
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                            side: BorderSide(color: Colors.grey.shade200),
-                            borderRadius: BorderRadius.circular(8)
+                    final key = sortedKeys[index];
+                    final employees = groups[key]!;
+                    
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12.0),
+                          child: Row(
+                            children: [
+                              const Icon(LucideIcons.clock, size: 16, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              Text("$key Shift", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blue, fontSize: 16)),
+                              const SizedBox(width: 12),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                child: Text("${employees.length} Pax", style: TextStyle(fontSize: 11, color: Colors.blue.shade800, fontWeight: FontWeight.bold)),
+                              ),
+                              const Spacer(),
+                              Expanded(child: Container(height: 1, color: Colors.blue.withOpacity(0.2))),
+                            ],
+                          ),
                         ),
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: Padding(
-                            padding: const EdgeInsets.all(12),
-                            child: Row(
-                                children: [
-                                    Container(
-                                        width: 4, height: 40,
-                                        decoration: BoxDecoration(color: Colors.blue.withOpacity(0.5), borderRadius: BorderRadius.circular(2)),
+
+                        // Items
+                        ...employees.map((emp) {
+                            final companyColor = _getCompanyColor(emp.company);
+
+                            return Padding(
+                                padding: const EdgeInsets.only(bottom: 12.0),
+                                child: Container(
+                                    clipBehavior: Clip.antiAlias,
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(color: Colors.grey.shade100),
+                                      boxShadow: [
+                                        BoxShadow(color: Colors.grey.shade100, blurRadius: 4, offset: const Offset(0, 2))
+                                      ]
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                        child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                                Text(emp.time, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'monospace')),
-                                                Text(emp.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-                                                Text("${emp.pickupLocation} • ${emp.company}", style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                            ],
+                                    child: InkWell(
+                                      onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (_) => EditEmployeeScreen(employee: emp, selectedDay: selectedDay))
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: IntrinsicHeight(
+                                        child: Row(
+                                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                                          children: [
+                                            // Color Strip
+                                            Container(width: 6, color: companyColor),
+                                            
+                                            Expanded(
+                                              child: Padding(
+                                                  padding: const EdgeInsets.all(16),
+                                                  child: Row(
+                                                      children: [
+                                                          // Time Pill
+                                                          Container(
+                                                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                                            decoration: BoxDecoration(
+                                                              color: Colors.blue.shade50,
+                                                              borderRadius: BorderRadius.circular(8),
+                                                            ),
+                                                            child: Text(
+                                                              emp.time, 
+                                                              style: TextStyle(
+                                                                fontWeight: FontWeight.bold, 
+                                                                fontFamily: 'monospace',
+                                                                color: Colors.blue.shade800
+                                                              )
+                                                            ),
+                                                          ),
+                                                          const SizedBox(width: 16),
+                                                          Expanded(
+                                                              child: Column(
+                                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                                  children: [
+                                                                      Text(emp.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                                                      const SizedBox(height: 4),
+                                                                      Row(
+                                                                        children: [
+                                                                          Icon(FontAwesomeIcons.locationDot, size: 10, color: Colors.grey[400]),
+                                                                          const SizedBox(width: 4),
+                                                                          Expanded(child: Text(emp.pickupLocation, style: TextStyle(fontSize: 12, color: Colors.grey[600]), overflow: TextOverflow.ellipsis)),
+                                                                        ],
+                                                                      ),
+                                                                      const SizedBox(height: 4),
+                                                                      Row(
+                                                                        children: [
+                                                                          Icon(FontAwesomeIcons.building, size: 10, color: companyColor.withOpacity(0.7)),
+                                                                          const SizedBox(width: 4),
+                                                                          Expanded(child: Text(emp.company, style: TextStyle(fontSize: 12, color: companyColor, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                                                                        ],
+                                                                      ),
+                                                                  ],
+                                                              ),
+                                                          ),
+                                                          
+                                                          // Actions
+                                                          Row(
+                                                            children: [
+                                                              // Edit Button
+                                                              Container(
+                                                                width: 36, height: 36,
+                                                                decoration: BoxDecoration(
+                                                                  color: Colors.grey[50], 
+                                                                  borderRadius: BorderRadius.circular(8)
+                                                                ),
+                                                                child: IconButton(
+                                                                  icon: const Icon(FontAwesomeIcons.pen, size: 14, color: Colors.blue),
+                                                                  onPressed: () => Navigator.push(
+                                                                      context,
+                                                                      MaterialPageRoute(builder: (_) => EditEmployeeScreen(employee: emp, selectedDay: selectedDay))
+                                                                  ),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(width: 8),
+                                                              // Delete Button
+                                                              Container(
+                                                                width: 36, height: 36,
+                                                                decoration: BoxDecoration(
+                                                                  color: Colors.red.withOpacity(0.05), 
+                                                                  borderRadius: BorderRadius.circular(8)
+                                                                ),
+                                                                child: IconButton(
+                                                                    icon: const Icon(FontAwesomeIcons.trashCan, size: 14, color: Colors.red),
+                                                                    onPressed: () {
+                                                                        showDialog(context: context, builder: (ctx) => AlertDialog(
+                                                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                                            title: const Row(
+                                                                              children: [
+                                                                                Icon(FontAwesomeIcons.triangleExclamation, color: Colors.orange, size: 20),
+                                                                                SizedBox(width: 8),
+                                                                                Text("Delete Entry?"),
+                                                                              ],
+                                                                            ),
+                                                                            content: Text("Are you sure you want to delete ${emp.name}?"),
+                                                                            actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                                                                            actions: [
+                                                                                TextButton(
+                                                                                  onPressed: ()=>Navigator.pop(ctx), 
+                                                                                  child: const Text("Cancel", style: TextStyle(color: Colors.grey))
+                                                                                ),
+                                                                                ElevatedButton.icon(
+                                                                                    onPressed: () {
+                                                                                        appState.deleteEmployee(emp.id);
+                                                                                        Navigator.pop(ctx);
+                                                                                    }, 
+                                                                                    icon: const Icon(FontAwesomeIcons.trash, size: 14),
+                                                                                    label: const Text("Delete"),
+                                                                                    style: ElevatedButton.styleFrom(
+                                                                                      backgroundColor: Colors.red,
+                                                                                      foregroundColor: Colors.white,
+                                                                                      elevation: 0,
+                                                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                                                                                    ),
+                                                                                )
+                                                                            ],
+                                                                        ));
+                                                                    },
+                                                                ),
+                                                              )
+                                                            ],
+                                                          )
+                                                      ],
+                                                  ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
+                                      ),
                                     ),
-                                    IconButton(
-                                        icon: const Icon(LucideIcons.edit2, size: 18, color: Colors.blue),
-                                        onPressed: () => _showEditDialog(context, emp, appState),
                                     ),
-                                    IconButton(
-                                        icon: const Icon(LucideIcons.trash2, size: 18, color: Colors.red),
-                                        onPressed: () {
-                                            if(data.length < 2) {
-                                               // prevent clearing all maybe? nah allowed.
-                                            }
-                                            // confirm delete
-                                            showDialog(context: context, builder: (ctx) => AlertDialog(
-                                                title: const Text("Delete?"),
-                                                content: const Text("Are you sure you want to delete this row?"),
-                                                actions: [
-                                                    TextButton(onPressed: ()=>Navigator.pop(ctx), child: const Text("Cancel")),
-                                                    TextButton(
-                                                        onPressed: () {
-                                                            appState.deleteEmployee(emp.id);
-                                                            Navigator.pop(ctx);
-                                                        }, 
-                                                        child: const Text("Delete", style: TextStyle(color: Colors.red))
-                                                    )
-                                                ],
-                                            ));
-                                        },
-                                    )
-                                ],
-                            ),
-                        ),
+                                );
+                        }),
+                      ],
                     );
                 }
             )
+
+
+
+
       ],
-    );
-  }
-
-  void _showEditDialog(BuildContext context, Employee? employee, AppState appState) {
-    final isNew = employee == null;
-    
-    // Controllers
-    final nameCtrl = TextEditingController(text: employee?.name ?? '');
-    final pickupCtrl = TextEditingController(text: employee?.pickupLocation ?? '');
-    final companyCtrl = TextEditingController(text: employee?.company ?? '');
-    final timeCtrl = TextEditingController(text: employee?.time ?? '08:00');
-    final serialCtrl = TextEditingController(text: employee?.serialNumber ?? '${appState.employees.length + 1}');
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isNew ? "Add Employee" : "Edit Employee"),
-        content: SingleChildScrollView(
-          child: Column(
-             mainAxisSize: MainAxisSize.min,
-             children: [
-                 TextField(controller: timeCtrl, decoration: const InputDecoration(labelText: "Time (HH:MM)")),
-                 TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Name")),
-                 TextField(controller: serialCtrl, decoration: const InputDecoration(labelText: "Serial #")),
-                 TextField(controller: pickupCtrl, decoration: const InputDecoration(labelText: "Pickup Location")),
-                 TextField(controller: companyCtrl, decoration: const InputDecoration(labelText: "Company")),
-             ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () {
-               // Validation (basic)
-               if(timeCtrl.text.isEmpty || nameCtrl.text.isEmpty) return;
-
-               final newEmp = Employee(
-                   id: employee?.id ?? DateTime.now().millisecondsSinceEpoch.toString(), // simple ID gen
-                   serialNumber: serialCtrl.text,
-                   name: nameCtrl.text,
-                   pickupLocation: pickupCtrl.text,
-                   company: companyCtrl.text,
-                   time: timeCtrl.text,
-                   day: selectedDay,
-                   weeklyStatus: employee?.weeklyStatus ?? List.filled(5, TransportStatus.PENDING),
-                   lastUpdated: DateTime.now().toIso8601String()
-               );
-               
-               appState.updateEmployee(newEmp);
-               Navigator.pop(ctx);
-            },
-            child: const Text("Save"),
-          )
-        ],
-      ),
     );
   }
 }
