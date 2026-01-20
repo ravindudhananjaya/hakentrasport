@@ -1,4 +1,3 @@
-
 import 'package:flutter/foundation.dart';
 import '../models/employee.dart';
 import '../services/storage_service.dart';
@@ -7,7 +6,7 @@ enum AppViewMode { USER, ADMIN }
 
 class AppState with ChangeNotifier {
   final StorageService _storage = StorageService();
-  
+
   List<Employee> _employees = [];
   AppViewMode _viewMode = AppViewMode.USER;
   bool _isLoading = true;
@@ -33,21 +32,25 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> updateEmployeeStatus(String id, int weekIndex, TransportStatus status) async {
+  Future<void> updateEmployeeStatus(
+    String id,
+    int weekIndex,
+    TransportStatus status,
+  ) async {
     final index = _employees.indexWhere((e) => e.id == id);
     if (index != -1) {
       final emp = _employees[index];
       final newWeeks = List<TransportStatus>.from(emp.weeklyStatus);
       newWeeks[weekIndex] = status;
-      
+
       final updatedEmp = emp.copyWith(
         weeklyStatus: newWeeks,
         lastUpdated: DateTime.now().toIso8601String(),
       );
-      
+
       _employees[index] = updatedEmp;
       notifyListeners();
-      await _storage.saveEmployees(_employees);
+      await _storage.updateEmployee(updatedEmp);
     }
   }
 
@@ -55,17 +58,18 @@ class AppState with ChangeNotifier {
     final index = _employees.indexWhere((e) => e.id == updatedEmp.id);
     if (index != -1) {
       _employees[index] = updatedEmp;
+      await _storage.updateEmployee(updatedEmp);
     } else {
       _employees.insert(0, updatedEmp); // Add new
+      await _storage.addEmployee(updatedEmp);
     }
     notifyListeners();
-    await _storage.saveEmployees(_employees);
   }
 
   Future<void> deleteEmployee(String id) async {
     _employees.removeWhere((e) => e.id == id);
     notifyListeners();
-    await _storage.saveEmployees(_employees);
+    await _storage.deleteEmployee(id);
   }
 
   Future<void> resetData() async {

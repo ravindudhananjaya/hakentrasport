@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/employee.dart';
 import '../providers/app_state.dart';
 import 'edit_employee_screen.dart';
@@ -245,6 +246,33 @@ class _AdminPanelState extends State<AdminPanel> {
                                                           // Actions
                                                           Row(
                                                             children: [
+                                                              if (emp.phoneNumber.isNotEmpty) ...[
+                                                                Container(
+                                                                  width: 36, height: 36,
+                                                                  decoration: BoxDecoration(
+                                                                    color: Colors.green.withOpacity(0.1), 
+                                                                    borderRadius: BorderRadius.circular(8)
+                                                                  ),
+                                                                  child: IconButton(
+                                                                    icon: const Icon(FontAwesomeIcons.phone, size: 14, color: Colors.green),
+                                                                    onPressed: () async {
+                                                                      final cleanNumber = emp.phoneNumber.replaceAll(RegExp(r'\s+|-'), '');
+                                                                      final Uri launchUri = Uri(
+                                                                        scheme: 'tel',
+                                                                        path: cleanNumber,
+                                                                      );
+                                                                      if (await canLaunchUrl(launchUri)) {
+                                                                        await launchUrl(launchUri);
+                                                                      } else {
+                                                                         // Fallback: try launching without checking functionality
+                                                                         // useful for some specific android versions or simulators
+                                                                         await launchUrl(launchUri, mode: LaunchMode.externalApplication);
+                                                                      }
+                                                                    },
+                                                                  ),
+                                                                ),
+                                                                const SizedBox(width: 8),
+                                                              ],
                                                               // Edit Button
                                                               Container(
                                                                 width: 36, height: 36,

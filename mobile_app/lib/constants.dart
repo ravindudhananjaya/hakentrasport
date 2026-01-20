@@ -39,7 +39,7 @@ Employee createEmp(String serial, String name, String pickup, String company, St
     time: time,
     day: day,
     weeklyStatus: defaultWeeks(status),
-    lastUpdated: DateTime.now().toIso8601String(),
+    lastUpdated: DateTime.now().toIso8601String(), phoneNumber: '',
   );
 }
 

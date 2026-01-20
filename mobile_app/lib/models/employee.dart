@@ -27,6 +27,7 @@ class Employee {
   final String id;
   final String serialNumber;
   final String name;
+  final String phoneNumber;
   final String pickupLocation;
   final String company;
   final String time;
@@ -38,6 +39,7 @@ class Employee {
     required this.id,
     required this.serialNumber,
     required this.name,
+    required this.phoneNumber,
     required this.pickupLocation,
     required this.company,
     required this.time,
@@ -51,6 +53,7 @@ class Employee {
       id: json['id'],
       serialNumber: json['serialNumber'],
       name: json['name'],
+      phoneNumber: json['phoneNumber'] ?? '',
       pickupLocation: json['pickupLocation'] ?? '',
       company: json['company'] ?? '',
       time: json['time'],
@@ -65,6 +68,7 @@ class Employee {
       'id': id,
       'serialNumber': serialNumber,
       'name': name,
+      'phoneNumber': phoneNumber,
       'pickupLocation': pickupLocation,
       'company': company,
       'time': time,
@@ -78,6 +82,7 @@ class Employee {
     String? id,
     String? serialNumber,
     String? name,
+    String? phoneNumber,
     String? pickupLocation,
     String? company,
     String? time,
@@ -89,6 +94,7 @@ class Employee {
       id: id ?? this.id,
       serialNumber: serialNumber ?? this.serialNumber,
       name: name ?? this.name,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
       pickupLocation: pickupLocation ?? this.pickupLocation,
       company: company ?? this.company,
       time: time ?? this.time,

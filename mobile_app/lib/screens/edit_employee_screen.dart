@@ -17,6 +17,7 @@ class EditEmployeeScreen extends StatefulWidget {
 
 class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
   late TextEditingController nameCtrl;
+  late TextEditingController phoneCtrl;
   late TextEditingController pickupCtrl;
   late TextEditingController companyCtrl;
   late TextEditingController timeCtrl;
@@ -27,6 +28,7 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
     final emp = widget.employee;
     
     nameCtrl = TextEditingController(text: emp?.name ?? '');
+    phoneCtrl = TextEditingController(text: emp?.phoneNumber ?? '');
     pickupCtrl = TextEditingController(text: emp?.pickupLocation ?? '');
     companyCtrl = TextEditingController(text: emp?.company ?? '');
     timeCtrl = TextEditingController(text: emp?.time ?? '08:00');
@@ -35,6 +37,7 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
   @override
   void dispose() {
     nameCtrl.dispose();
+    phoneCtrl.dispose();
     pickupCtrl.dispose();
     companyCtrl.dispose();
     timeCtrl.dispose();
@@ -63,6 +66,7 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
         id: widget.employee?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         serialNumber: serial,
         name: nameCtrl.text,
+        phoneNumber: phoneCtrl.text,
         pickupLocation: pickupCtrl.text,
         company: companyCtrl.text,
         time: timeCtrl.text,
@@ -142,6 +146,12 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                        controller: nameCtrl, 
                        textCapitalization: TextCapitalization.words,
                        decoration: _inputStyle("Passenger Name", FontAwesomeIcons.user)
+                     ),
+                     const SizedBox(height: 20),
+                     TextField(
+                       controller: phoneCtrl, 
+                       keyboardType: TextInputType.phone,
+                       decoration: _inputStyle("Phone Number", FontAwesomeIcons.phone)
                      ),
                      const SizedBox(height: 20),
                      DropdownButtonFormField<String>(
