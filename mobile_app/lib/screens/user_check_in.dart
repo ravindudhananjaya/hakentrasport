@@ -4,6 +4,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/employee.dart';
 import '../providers/app_state.dart';
+import '../services/pdf_export_service.dart';
 
 class UserCheckIn extends StatefulWidget {
   const UserCheckIn({super.key});
@@ -14,22 +15,42 @@ class UserCheckIn extends StatefulWidget {
 
 class _UserCheckInState extends State<UserCheckIn> {
   DayOfWeek selectedDay = DayOfWeek.Monday; // Default
+  DateTime selectedMonth = DateTime.now(); // Default to current month
   int selectedWeek = 0;
   String searchTerm = '';
 
   @override
   void initState() {
     super.initState();
-    // Set to today if possible, else Monday
-    final nowDay = DateTime.now().weekday; // 1 = Mon, 7 = Sun
-    // Map 1-7 to DayOfWeek
+    // Default to today's day of week
+    final now = DateTime.now();
+    final nowDay = now.weekday; // 1 = Mon, 7 = Sun
     if (nowDay <= 7) {
-      // Enum is Monday=0? No in dart it's index based.
-      // DayOfWeek.Monday.index is 0.
-      // DateTime.Monday is 1.
-      // Let's just default to Monday for safety or map correctly.
-      // DayOfWeek.values[nowDay - 1] should work if aligned.
+      selectedDay = DayOfWeek.values[nowDay - 1];
     }
+
+    // Default to current week index (0-based) based on day of month
+    selectedWeek = (now.day - 1) ~/ 7;
+    // selectedMonth is already initialized to now
+  }
+
+  void _changeMonth(int monthsToAdd) {
+    setState(() {
+      // Calculate new month
+      final newMonth = DateTime(
+        selectedMonth.year,
+        selectedMonth.month + monthsToAdd,
+        1,
+      );
+      selectedMonth = newMonth;
+      // Optionally reset week? Let's keep week if possible, or reset if out of bounds?
+      // Week 0-4 is generic. Keep it.
+    });
+    // Reload attendance for this new month
+    // We need access to appState here, but we are inside setState.
+    // Best to call this in the UI callback or after build frame?
+    // Accessing context.read<AppState>() is safe here? Yes.
+    context.read<AppState>().loadAttendanceForMonth(selectedMonth);
   }
 
   @override
@@ -60,6 +81,24 @@ class _UserCheckInState extends State<UserCheckIn> {
     }
     final sortedKeys = groups.keys.toList()..sort();
 
+    // Date formatting for Month Selector
+    final monthNames = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
+    ];
+    final monthStr =
+        "${monthNames[selectedMonth.month - 1]} ${selectedMonth.year}";
+
     return Column(
       children: [
         // Controls
@@ -72,6 +111,46 @@ class _UserCheckInState extends State<UserCheckIn> {
           ),
           child: Column(
             children: [
+              // Month Selector
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(LucideIcons.chevronLeft),
+                        onPressed: () => _changeMonth(-1),
+                      ),
+                      Text(
+                        monthStr,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(LucideIcons.chevronRight),
+                        onPressed: () => _changeMonth(1),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.printer, color: Colors.blue),
+                    tooltip: "Export PDF",
+                    onPressed: () async {
+                      // Export PDF
+                      await PdfExportService.generateAndPrint(
+                        selectedMonth,
+                        data, // Use full list or filtered? Usually full month report.
+                        context.read<AppState>(),
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
+
               // Day Selector
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -161,6 +240,74 @@ class _UserCheckInState extends State<UserCheckIn> {
                   ),
                 ),
                 onChanged: (val) => setState(() => searchTerm = val),
+              ),
+
+              const SizedBox(height: 12),
+
+              // Date Display
+              Builder(
+                builder: (context) {
+                  final date = appState.calculateDate(
+                    selectedDay,
+                    selectedWeek,
+                    referenceDate: selectedMonth, // Pass selected month
+                  );
+                  // Simple Format: "Tuesday, Jan 20"
+                  // Or standard: YYYY-MM-DD
+                  // Let's do readable
+                  final months = [
+                    "Jan",
+                    "Feb",
+                    "Mar",
+                    "Apr",
+                    "May",
+                    "Jun",
+                    "Jul",
+                    "Aug",
+                    "Sep",
+                    "Oct",
+                    "Nov",
+                    "Dec",
+                  ];
+                  final dateStr =
+                      "${selectedDay.name}, ${months[date.month - 1]} ${date.day}";
+
+                  return Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.05),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          LucideIcons.calendar,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          "Viewing Date: ",
+                          style: TextStyle(
+                            color: Colors.blue.shade800,
+                            fontSize: 13,
+                          ),
+                        ),
+                        Text(
+                          dateStr,
+                          style: TextStyle(
+                            color: Colors.blue.shade800,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               ),
             ],
           ),
@@ -455,10 +602,11 @@ class _UserCheckInState extends State<UserCheckIn> {
                                                   TransportStatus.DROPPED_OFF,
                                               color: Colors.green,
                                               onTap: () =>
-                                                  appState.updateEmployeeStatus(
-                                                    emp.id,
+                                                  _showHealthCheckDialog(
+                                                    context,
+                                                    emp,
+                                                    appState,
                                                     selectedWeek,
-                                                    TransportStatus.DROPPED_OFF,
                                                   ),
                                             ),
                                           ),
@@ -514,6 +662,285 @@ class _UserCheckInState extends State<UserCheckIn> {
             },
           ),
       ],
+    );
+  }
+
+  void _showHealthCheckDialog(
+    BuildContext context,
+    Employee emp,
+    AppState appState,
+    int selectedWeek,
+  ) {
+    String? selectedHealthCondition;
+    final temperatureController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  LucideIcons.heartPulse,
+                  color: Colors.green,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Health Check',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Driver name
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Driver',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        emp.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Question 1: Health Condition
+                const Text(
+                  '1. Health Condition',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _HealthOptionChip(
+                      label: 'Good',
+                      icon: LucideIcons.smile,
+                      color: Colors.green,
+                      isSelected: selectedHealthCondition == 'Good',
+                      onTap: () =>
+                          setState(() => selectedHealthCondition = 'Good'),
+                    ),
+                    _HealthOptionChip(
+                      label: 'Not Good',
+                      icon: LucideIcons.frown,
+                      color: Colors.orange,
+                      isSelected: selectedHealthCondition == 'Not Good',
+                      onTap: () =>
+                          setState(() => selectedHealthCondition = 'Not Good'),
+                    ),
+                    _HealthOptionChip(
+                      label: 'Diarrhea',
+                      icon: LucideIcons.alertCircle,
+                      color: Colors.red,
+                      isSelected: selectedHealthCondition == 'Diarrhea',
+                      onTap: () =>
+                          setState(() => selectedHealthCondition = 'Diarrhea'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Question 2: Body Temperature
+                const Text(
+                  '2. Body Temperature',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: temperatureController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Enter temperature',
+                    suffixText: '°C',
+                    suffixStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue,
+                    ),
+                    prefixIcon: const Icon(
+                      LucideIcons.thermometer,
+                      color: Colors.blue,
+                    ),
+                    filled: true,
+                    fillColor: Colors.grey[50],
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.blue,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Normal range: 36.1°C - 37.2°C',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey[600],
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                // Validate inputs
+                if (selectedHealthCondition == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select health condition'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+
+                if (temperatureController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter body temperature'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+
+                final temperature = double.tryParse(
+                  temperatureController.text.trim(),
+                );
+                if (temperature == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please enter a valid temperature'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  return;
+                }
+
+                // Save the context before async operations
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final employeeName = emp.name;
+                final healthCondition = selectedHealthCondition!;
+
+                // Close dialog
+                Navigator.of(dialogContext).pop();
+
+                // Save attendance with health check data
+                await appState.saveAttendanceWithHealth(
+                  emp.id,
+                  selectedWeek,
+                  TransportStatus.DROPPED_OFF,
+                  healthCondition,
+                  temperature,
+                );
+
+                // Update local status
+                appState.updateEmployeeStatus(
+                  emp.id,
+                  selectedWeek,
+                  TransportStatus.DROPPED_OFF,
+                );
+
+                // Show success message with health info (using saved messenger)
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Health check completed for $employeeName\n'
+                      'Condition: $healthCondition | Temp: ${temperature.toStringAsFixed(1)}°C',
+                    ),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 3),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: const Text(
+                'Submit',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -599,4 +1026,55 @@ class _StatusBtn extends StatelessWidget {
 
 extension Filter<T> on Iterable<T> {
   Iterable<T> filter(bool Function(T) test) => where(test);
+}
+
+class _HealthOptionChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _HealthOptionChip({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withOpacity(0.1) : Colors.grey[50],
+          border: Border.all(
+            color: isSelected ? color : Colors.grey.shade300,
+            width: isSelected ? 2 : 1,
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: isSelected ? color : Colors.grey[600]),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected ? color : Colors.grey[700],
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
