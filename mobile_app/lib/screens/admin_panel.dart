@@ -16,6 +16,7 @@ class AdminPanel extends StatefulWidget {
 
 class _AdminPanelState extends State<AdminPanel> {
   DayOfWeek selectedDay = DayOfWeek.Monday;
+  bool isPickup = true;
 
   Color _getCompanyColor(String company) {
     const colors = [
@@ -35,12 +36,17 @@ class _AdminPanelState extends State<AdminPanel> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final data = appState.employees.where((e) => e.day == selectedDay).toList();
-    data.sort((a, b) => a.time.compareTo(b.time));
+    data.sort(
+      (a, b) => isPickup
+          ? a.time.compareTo(b.time)
+          : a.dropOffTime.compareTo(b.dropOffTime),
+    );
 
     // Grouping Logic
     final groups = <String, List<Employee>>{};
     for (var e in data) {
-      final hour = e.time.split(':')[0];
+      final timeStr = isPickup ? e.time : e.dropOffTime;
+      final hour = timeStr.split(':')[0];
       final key = "$hour:00 - $hour:59";
       groups.putIfAbsent(key, () => []).add(e);
     }
@@ -70,21 +76,15 @@ class _AdminPanelState extends State<AdminPanel> {
                   ),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? Theme.of(context).primaryColor
-                        : Colors.white,
+                    color: isSelected ? Colors.blue : Colors.grey[200],
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected
-                          ? Theme.of(context).primaryColor
-                          : Colors.grey.shade200,
+                      color: isSelected ? Colors.blue : Colors.transparent,
                     ),
                     boxShadow: isSelected
                         ? [
                             BoxShadow(
-                              color: Theme.of(
-                                context,
-                              ).primaryColor.withOpacity(0.3),
+                              color: Colors.blue.withOpacity(0.3),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -95,7 +95,7 @@ class _AdminPanelState extends State<AdminPanel> {
                     day.name,
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? Colors.white : Colors.grey.shade600,
+                      color: isSelected ? Colors.white : Colors.black,
                     ),
                   ),
                 ),
@@ -130,26 +130,46 @@ class _AdminPanelState extends State<AdminPanel> {
                 ),
               ],
             ),
-            ElevatedButton.icon(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => EditEmployeeScreen(selectedDay: selectedDay),
+            Row(
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey[800]
+                        : Colors.grey[200],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      _buildToggleButton("Pickup", true),
+                      _buildToggleButton("Drop-off", false),
+                    ],
+                  ),
                 ),
-              ),
-              icon: const Icon(FontAwesomeIcons.plus, size: 14),
-              label: const Text("Add Row"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          EditEmployeeScreen(selectedDay: selectedDay),
+                    ),
+                  ),
+                  icon: const Icon(FontAwesomeIcons.plus, size: 14),
+                  label: const Text("Add"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+              ],
             ),
           ],
         ),
@@ -199,7 +219,7 @@ class _AdminPanelState extends State<AdminPanel> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "$key Shift",
+                          isPickup ? "Pickup Shift" : "Drop-off Shift",
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
@@ -245,12 +265,14 @@ class _AdminPanelState extends State<AdminPanel> {
                       child: Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade100),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.shade100,
+                              color: Colors.black.withOpacity(0.05),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -292,7 +314,9 @@ class _AdminPanelState extends State<AdminPanel> {
                                             ),
                                           ),
                                           child: Text(
-                                            emp.time,
+                                            isPickup
+                                                ? emp.time
+                                                : emp.dropOffTime,
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontFamily: 'monospace',
@@ -560,6 +584,28 @@ class _AdminPanelState extends State<AdminPanel> {
             },
           ),
       ],
+    );
+  }
+
+  Widget _buildToggleButton(String text, bool value) {
+    final isSelected = isPickup == value;
+    return GestureDetector(
+      onTap: () => setState(() => isPickup = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blue : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Theme.of(context).hintColor,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
+          ),
+        ),
+      ),
     );
   }
 }

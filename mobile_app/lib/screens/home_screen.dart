@@ -60,9 +60,11 @@ class HomeScreen extends StatelessWidget {
     }
 
     return Scaffold(
+      drawer: const _SideDrawer(),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: Theme.of(context).cardColor,
         elevation: 0,
+        iconTheme: IconThemeData(color: Theme.of(context).iconTheme.color),
         title: Row(
           children: [
             Container(
@@ -108,7 +110,7 @@ class HomeScreen extends StatelessWidget {
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1.0),
-          child: Container(color: Colors.grey[200], height: 1.0),
+          child: Container(color: Theme.of(context).dividerColor, height: 1.0),
         ),
       ),
       body: appState.isLoading
@@ -150,10 +152,10 @@ class _HeaderSection extends StatelessWidget {
                 isAdmin ? 'Transport Management' : 'Driver Attendance',
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A), // Slate 900
+                  color: Theme.of(context).textTheme.bodyLarge?.color,
                 ),
               ),
               const SizedBox(height: 4),
@@ -163,8 +165,10 @@ class _HeaderSection extends StatelessWidget {
                     : 'Mark passenger attendance and pickup status.',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF64748B), // Slate 500
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.color?.withOpacity(0.7),
                   fontSize: 13,
                 ),
               ),
@@ -198,9 +202,7 @@ class _ModeToggleButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: isActive
-              ? (label == 'Admin'
-                    ? Theme.of(context).primaryColor
-                    : const Color(0xFF1E293B))
+              ? (label == 'Admin' ? Colors.blue : const Color(0xFF1E293B))
               : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
@@ -209,7 +211,9 @@ class _ModeToggleButton extends StatelessWidget {
             Icon(
               icon,
               size: 16,
-              color: isActive ? Colors.white : const Color(0xFF475569),
+              color: isActive
+                  ? Colors.white
+                  : Theme.of(context).iconTheme.color?.withOpacity(0.7),
             ),
             const SizedBox(width: 6),
             Text(
@@ -217,11 +221,67 @@ class _ModeToggleButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: isActive ? Colors.white : const Color(0xFF475569),
+                color: isActive
+                    ? Colors.white
+                    : Theme.of(context).textTheme.bodyMedium?.color,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SideDrawer extends StatelessWidget {
+  const _SideDrawer();
+
+  @override
+  Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
+    final isDark = appState.themeMode == ThemeMode.dark;
+
+    return Drawer(
+      child: Column(
+        children: [
+          DrawerHeader(
+            decoration: BoxDecoration(color: Theme.of(context).primaryColor),
+            child: const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(LucideIcons.bus, size: 48, color: Colors.white),
+                  SizedBox(height: 12),
+                  Text(
+                    'Transport Scheduler',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(LucideIcons.moon),
+            title: const Text('Dark Mode'),
+            trailing: Switch(
+              value: isDark,
+              onChanged: (val) {
+                appState.setThemeMode(val ? ThemeMode.dark : ThemeMode.light);
+              },
+            ),
+          ),
+          const Spacer(),
+          ListTile(
+            leading: const Icon(LucideIcons.info),
+            title: const Text('Version 1.0.0'),
+            enabled: false,
+          ),
+          const SizedBox(height: 20),
+        ],
       ),
     );
   }

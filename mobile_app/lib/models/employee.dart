@@ -60,8 +60,10 @@ class Employee {
   final String pickupLocation;
   final String company;
   final String time;
+  final String dropOffTime;
   final DayOfWeek day;
-  final List<TransportStatus> weeklyStatus;
+  final List<TransportStatus> weeklyPickupStatus;
+  final List<TransportStatus> weeklyDropoffStatus;
   final List<HealthCheckData?>
   weeklyHealthChecks; // Health data for each week (5 weeks)
   final String lastUpdated;
@@ -74,13 +76,35 @@ class Employee {
     required this.pickupLocation,
     required this.company,
     required this.time,
+    required this.dropOffTime,
     required this.day,
-    required this.weeklyStatus,
+    required this.weeklyPickupStatus,
+    required this.weeklyDropoffStatus,
     required this.weeklyHealthChecks,
     required this.lastUpdated,
   });
 
   factory Employee.fromJson(Map<String, dynamic> json) {
+    // Migration Logic:
+    // If 'weeklyPickupStatus' exists, use it.
+    // If not, use 'weeklyStatus' (legacy) as pickup status.
+    // Default to PENDING.
+
+    List<TransportStatus> parseStatusList(dynamic list) {
+      if (list is List) {
+        return list.map((e) => TransportStatus.fromJson(e.toString())).toList();
+      }
+      return List.filled(5, TransportStatus.PENDING);
+    }
+
+    final pickupList = json['weeklyPickupStatus'] != null
+        ? parseStatusList(json['weeklyPickupStatus'])
+        : (json['weeklyStatus'] != null
+              ? parseStatusList(json['weeklyStatus'])
+              : List.filled(5, TransportStatus.PENDING));
+
+    final dropoffList = parseStatusList(json['weeklyDropoffStatus']);
+
     return Employee(
       id: json['id'],
       serialNumber: json['serialNumber'],
@@ -89,10 +113,10 @@ class Employee {
       pickupLocation: json['pickupLocation'] ?? '',
       company: json['company'] ?? '',
       time: json['time'],
+      dropOffTime: json['dropOffTime'] ?? '17:00',
       day: DayOfWeek.fromJson(json['day'] ?? 'Monday'),
-      weeklyStatus: (json['weeklyStatus'] as List)
-          .map((e) => TransportStatus.fromJson(e.toString()))
-          .toList(),
+      weeklyPickupStatus: pickupList,
+      weeklyDropoffStatus: dropoffList,
       weeklyHealthChecks:
           (json['weeklyHealthChecks'] as List? ?? List.filled(5, null))
               .map(
@@ -114,8 +138,12 @@ class Employee {
       'pickupLocation': pickupLocation,
       'company': company,
       'time': time,
+      'dropOffTime': dropOffTime,
       'day': day.toJson(),
-      'weeklyStatus': weeklyStatus.map((e) => e.toJson()).toList(),
+      'weeklyPickupStatus': weeklyPickupStatus.map((e) => e.toJson()).toList(),
+      'weeklyDropoffStatus': weeklyDropoffStatus
+          .map((e) => e.toJson())
+          .toList(),
       'weeklyHealthChecks': weeklyHealthChecks.map((e) => e?.toJson()).toList(),
       'lastUpdated': lastUpdated,
     };
@@ -129,8 +157,10 @@ class Employee {
     String? pickupLocation,
     String? company,
     String? time,
+    String? dropOffTime,
     DayOfWeek? day,
-    List<TransportStatus>? weeklyStatus,
+    List<TransportStatus>? weeklyPickupStatus,
+    List<TransportStatus>? weeklyDropoffStatus,
     List<HealthCheckData?>? weeklyHealthChecks,
     String? lastUpdated,
   }) {
@@ -142,8 +172,10 @@ class Employee {
       pickupLocation: pickupLocation ?? this.pickupLocation,
       company: company ?? this.company,
       time: time ?? this.time,
+      dropOffTime: dropOffTime ?? this.dropOffTime,
       day: day ?? this.day,
-      weeklyStatus: weeklyStatus ?? this.weeklyStatus,
+      weeklyPickupStatus: weeklyPickupStatus ?? this.weeklyPickupStatus,
+      weeklyDropoffStatus: weeklyDropoffStatus ?? this.weeklyDropoffStatus,
       weeklyHealthChecks: weeklyHealthChecks ?? this.weeklyHealthChecks,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );

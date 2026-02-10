@@ -1,0 +1,11 @@
+# Sample CSV Template for Transport Data Import
+
+# Format: Serial No, Name, Pickup Location, Destination, Time
+# You can copy this template and modify it with your employee data
+
+Serial No,Name,Pickup Location,Destination,Time
+54,Rekha,Eki,akagi,9:20
+55,Santa,Eki,akagi,9:20
+56,Ramesh pun,eki,Dal-2,9:20
+59,kushal,EKI,Dai1,9:20
+60,Lokman,Eki,Akagi,9:20

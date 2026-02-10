@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../models/employee.dart';
 import '../providers/app_state.dart';
-import '../constants.dart';
 
 class EditEmployeeScreen extends StatefulWidget {
   final Employee? employee;
@@ -25,6 +24,7 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
   late TextEditingController pickupCtrl;
   late TextEditingController companyCtrl;
   late TextEditingController timeCtrl;
+  late TextEditingController dropOffTimeCtrl;
 
   @override
   void initState() {
@@ -36,6 +36,7 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
     pickupCtrl = TextEditingController(text: emp?.pickupLocation ?? '');
     companyCtrl = TextEditingController(text: emp?.company ?? '');
     timeCtrl = TextEditingController(text: emp?.time ?? '08:00');
+    dropOffTimeCtrl = TextEditingController(text: emp?.dropOffTime ?? '17:00');
   }
 
   @override
@@ -45,6 +46,7 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
     pickupCtrl.dispose();
     companyCtrl.dispose();
     timeCtrl.dispose();
+    dropOffTimeCtrl.dispose();
     super.dispose();
   }
 
@@ -77,9 +79,13 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
       pickupLocation: pickupCtrl.text,
       company: companyCtrl.text,
       time: timeCtrl.text,
+      dropOffTime: widget.employee?.dropOffTime ?? '17:00',
       day: widget.selectedDay,
-      weeklyStatus:
-          widget.employee?.weeklyStatus ??
+      weeklyPickupStatus:
+          widget.employee?.weeklyPickupStatus ??
+          List.filled(5, TransportStatus.PENDING),
+      weeklyDropoffStatus:
+          widget.employee?.weeklyDropoffStatus ??
           List.filled(5, TransportStatus.PENDING),
       weeklyHealthChecks:
           widget.employee?.weeklyHealthChecks ?? List.filled(5, null),
@@ -93,37 +99,80 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
   InputDecoration _inputStyle(String label, IconData icon) {
     return InputDecoration(
       labelText: label,
-      prefixIcon: Icon(icon, size: 20, color: Colors.grey[600]),
+      prefixIcon: Icon(
+        icon,
+        size: 20,
+        color: Theme.of(context).iconTheme.color?.withOpacity(0.7),
+      ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: Theme.of(context).dividerColor),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: Colors.grey.shade300),
+        borderSide: BorderSide(color: Theme.of(context).dividerColor),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
+        borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
       ),
       filled: true,
-      fillColor: Colors.grey[50],
+      fillColor: Theme.of(context).cardColor,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+    );
+  }
+
+  Future<void> _showAddDialog(String title, Function(String) onAdd) async {
+    final controller = TextEditingController();
+    await showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Add $title"),
+        content: TextField(
+          controller: controller,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: InputDecoration(
+            hintText: "Enter new $title",
+            border: const OutlineInputBorder(),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) {
+                onAdd(controller.text.trim());
+                Navigator.pop(ctx);
+              }
+            },
+            child: const Text("Add"),
+          ),
+        ],
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final isNew = widget.employee == null;
+    final appState = context.watch<AppState>();
+
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Theme.of(context).cardColor,
+        iconTheme: IconThemeData(color: Theme.of(context).iconTheme.color),
         title: Text(
           isNew ? "Add Employee" : "Edit Employee",
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Theme.of(context).textTheme.bodyLarge?.color,
+          ),
         ),
         centerTitle: true,
       ),
@@ -135,9 +184,9 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: BorderSide(color: Colors.grey.shade200),
+                side: BorderSide(color: Theme.of(context).dividerColor),
               ),
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Column(
@@ -191,6 +240,7 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                       },
                     ),
                     const SizedBox(height: 20),
+
                     TextField(
                       controller: nameCtrl,
                       textCapitalization: TextCapitalization.words,
@@ -209,40 +259,101 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      value: PICKUP_LOCATIONS.contains(pickupCtrl.text)
-                          ? pickupCtrl.text
-                          : null,
-                      decoration: _inputStyle(
-                        "Pickup Location",
-                        FontAwesomeIcons.locationDot,
-                      ),
-                      items: PICKUP_LOCATIONS
-                          .map(
-                            (loc) =>
-                                DropdownMenuItem(value: loc, child: Text(loc)),
-                          )
-                          .toList(),
-                      onChanged: (val) => pickupCtrl.text = val ?? '',
-                      icon: const Icon(FontAwesomeIcons.chevronDown, size: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value:
+                                appState.pickupLocations.contains(
+                                  pickupCtrl.text,
+                                )
+                                ? pickupCtrl.text
+                                : null,
+                            decoration: _inputStyle(
+                              "Pickup Location",
+                              FontAwesomeIcons.locationDot,
+                            ),
+                            items: appState.pickupLocations
+                                .map(
+                                  (loc) => DropdownMenuItem(
+                                    value: loc,
+                                    child: Text(loc),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) => pickupCtrl.text = val ?? '',
+                            icon: const Icon(
+                              FontAwesomeIcons.chevronDown,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.add, color: Colors.blue),
+                            onPressed: () {
+                              _showAddDialog("Pickup Location", (val) {
+                                appState.addPickupLocation(val);
+                                setState(() {
+                                  pickupCtrl.text = val;
+                                });
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 20),
-                    DropdownButtonFormField<String>(
-                      value: COMPANIES.contains(companyCtrl.text)
-                          ? companyCtrl.text
-                          : null,
-                      decoration: _inputStyle(
-                        "Company",
-                        FontAwesomeIcons.building,
-                      ),
-                      items: COMPANIES
-                          .map(
-                            (com) =>
-                                DropdownMenuItem(value: com, child: Text(com)),
-                          )
-                          .toList(),
-                      onChanged: (val) => companyCtrl.text = val ?? '',
-                      icon: const Icon(FontAwesomeIcons.chevronDown, size: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: appState.companies.contains(companyCtrl.text)
+                                ? companyCtrl.text
+                                : null,
+                            decoration: _inputStyle(
+                              "Company",
+                              FontAwesomeIcons.building,
+                            ),
+                            items: appState.companies
+                                .map(
+                                  (com) => DropdownMenuItem(
+                                    value: com,
+                                    child: Text(com),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (val) => companyCtrl.text = val ?? '',
+                            icon: const Icon(
+                              FontAwesomeIcons.chevronDown,
+                              size: 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.blue.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: IconButton(
+                            icon: const Icon(Icons.add, color: Colors.blue),
+                            onPressed: () {
+                              _showAddDialog("Company", (val) {
+                                appState.addCompany(val);
+                                setState(() {
+                                  companyCtrl.text = val;
+                                });
+                              });
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -262,7 +373,7 @@ class _EditEmployeeScreenState extends State<EditEmployeeScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
                   elevation: 2,
                   shape: RoundedRectangleBorder(

@@ -36,6 +36,7 @@ Employee createEmp(
   String pickup,
   String company,
   String time, {
+  String dropOffTime = '17:00',
   DayOfWeek day = DayOfWeek.Monday,
   TransportStatus status = TransportStatus.PENDING,
 }) {
@@ -46,8 +47,10 @@ Employee createEmp(
     pickupLocation: pickup,
     company: company,
     time: time,
+    dropOffTime: dropOffTime,
     day: day,
-    weeklyStatus: defaultWeeks(status),
+    weeklyPickupStatus: defaultWeeks(status),
+    weeklyDropoffStatus: defaultWeeks(status),
     weeklyHealthChecks: List.filled(5, null),
     lastUpdated: DateTime.now().toIso8601String(),
     phoneNumber: '',

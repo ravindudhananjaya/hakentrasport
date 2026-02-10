@@ -23,14 +23,25 @@ class TransportApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final appState = context.watch<AppState>();
     return MaterialApp(
       title: 'Transport Scheduler',
       debugShowCheckedModeBanner: false,
+      themeMode: appState.themeMode,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
         textTheme: GoogleFonts.interTextTheme(),
         scaffoldBackgroundColor: Colors.grey[50],
+      ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
+        scaffoldBackgroundColor: const Color(0xFF0F172A), // Slate 900
       ),
       home: const HomeScreen(),
     );

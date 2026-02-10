@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../models/employee.dart';
 import '../services/storage_service.dart';
+import '../constants.dart';
 
 enum AppViewMode { USER, ADMIN }
 
@@ -8,11 +9,17 @@ class AppState with ChangeNotifier {
   final StorageService _storage = StorageService();
 
   List<Employee> _employees = [];
+  List<String> _pickupLocations = [];
+  List<String> _companies = [];
   AppViewMode _viewMode = AppViewMode.USER;
+  ThemeMode _themeMode = ThemeMode.system;
   bool _isLoading = true;
 
   List<Employee> get employees => _employees;
+  List<String> get pickupLocations => _pickupLocations;
+  List<String> get companies => _companies;
   AppViewMode get viewMode => _viewMode;
+  ThemeMode get themeMode => _themeMode;
   bool get isLoading => _isLoading;
 
   AppState() {
@@ -24,6 +31,27 @@ class AppState with ChangeNotifier {
     notifyListeners();
     try {
       _employees = await _storage.getEmployees();
+
+      // Load Dropdowns
+      _pickupLocations = await _storage.getPickupLocations();
+      if (_pickupLocations.isEmpty) {
+        // Seed default locations
+        print("Seeding locations...");
+        for (var loc in PICKUP_LOCATIONS) {
+          await _storage.addPickupLocation(loc);
+        }
+        _pickupLocations = List.from(PICKUP_LOCATIONS);
+      }
+
+      _companies = await _storage.getCompanies();
+      if (_companies.isEmpty) {
+        // Seed default companies
+        print("Seeding companies...");
+        for (var com in COMPANIES) {
+          await _storage.addCompany(com);
+        }
+        _companies = List.from(COMPANIES);
+      }
     } catch (e) {
       print("Error fetching employees: $e");
     } finally {
@@ -34,32 +62,63 @@ class AppState with ChangeNotifier {
     await loadAttendanceForMonth(DateTime.now());
   }
 
+  Future<void> addPickupLocation(String name) async {
+    if (_pickupLocations.contains(name)) return;
+
+    _pickupLocations.add(name);
+    _pickupLocations.sort();
+    notifyListeners();
+
+    await _storage.addPickupLocation(name);
+  }
+
+  Future<void> addCompany(String name) async {
+    if (_companies.contains(name)) return;
+
+    _companies.add(name);
+    _companies.sort();
+    notifyListeners();
+
+    await _storage.addCompany(name);
+  }
+
   void setViewMode(AppViewMode mode) {
     _viewMode = mode;
+    notifyListeners();
+  }
+
+  void setThemeMode(ThemeMode mode) {
+    _themeMode = mode;
     notifyListeners();
   }
 
   Future<void> updateEmployeeStatus(
     String id,
     int weekIndex,
-    TransportStatus status,
-  ) async {
+    TransportStatus status, {
+    required bool isPickup,
+  }) async {
     final index = _employees.indexWhere((e) => e.id == id);
     if (index != -1) {
       final emp = _employees[index];
-      final newWeeks = List<TransportStatus>.from(emp.weeklyStatus);
-      newWeeks[weekIndex] = status;
+
+      final newPickup = List<TransportStatus>.from(emp.weeklyPickupStatus);
+      final newDropoff = List<TransportStatus>.from(emp.weeklyDropoffStatus);
+
+      if (isPickup) {
+        if (weekIndex < newPickup.length) newPickup[weekIndex] = status;
+      } else {
+        if (weekIndex < newDropoff.length) newDropoff[weekIndex] = status;
+      }
 
       final updatedEmp = emp.copyWith(
-        weeklyStatus: newWeeks,
+        weeklyPickupStatus: newPickup,
+        weeklyDropoffStatus: newDropoff,
         lastUpdated: DateTime.now().toIso8601String(),
       );
 
       _employees[index] = updatedEmp;
       notifyListeners();
-
-      // Removed: await _storage.updateEmployee(updatedEmp);
-      // We no longer update the employee roster for attendance changes.
 
       // Save to historical attendance
       try {
@@ -70,6 +129,7 @@ class AppState with ChangeNotifier {
           emp.serialNumber,
           date,
           status,
+          isPickup: isPickup,
         );
       } catch (e) {
         print("Error saving attendance history: $e");
@@ -128,9 +188,10 @@ class AppState with ChangeNotifier {
     String id,
     int weekIndex,
     TransportStatus status,
-    String healthCondition,
-    double temperature,
-  ) async {
+    String? healthCondition,
+    double? temperature, {
+    required bool isPickup,
+  }) async {
     final index = _employees.indexWhere((e) => e.id == id);
     if (index != -1) {
       final emp = _employees[index];
@@ -140,7 +201,11 @@ class AppState with ChangeNotifier {
       print('Employee: ${emp.name}');
       print('Date: $date');
       print('Status: $status');
-      print('Health: $healthCondition - $temperature°C');
+      if (healthCondition != null || temperature != null) {
+        print(
+          'Health: ${healthCondition ?? "N/A"} - ${temperature != null ? "$temperature°C" : "N/A"}',
+        );
+      }
 
       await _storage.saveAttendance(
         emp.id,
@@ -148,6 +213,7 @@ class AppState with ChangeNotifier {
         emp.serialNumber,
         date,
         status,
+        isPickup: isPickup,
         healthCondition: healthCondition,
         temperature: temperature,
       );
@@ -159,49 +225,58 @@ class AppState with ChangeNotifier {
   // Load attendance overlays for the displayed time period
   // This fetches for all employees across relevant dates for the REFERENCE MONTH
   Future<void> loadAttendanceForMonth(DateTime referenceDate) async {
-    // Iterate through employees, calculate their specific date for the month, and fetch.
+    // We scan the entire month day-by-day to ensure we catch all attendance,
+    // even if an employee shows up on a day they are not scheduled.
+    // We map each day to a 'weekIndex' (0-4) based on 7-day blocks.
+    // Day 1-7 -> Week 0
+    // Day 8-14 -> Week 1
+    // ...
 
-    // We scan 5 weeks to cover all possible days in a month view
-    for (int weekIndex = 0; weekIndex < 5; weekIndex++) {
-      final uniqueDates = <String, DateTime>{};
+    final daysInMonth = DateTime(
+      referenceDate.year,
+      referenceDate.month + 1,
+      0,
+    ).day;
 
-      for (var emp in _employees) {
-        final date = calculateDate(
-          emp.day,
-          weekIndex,
-          referenceDate: referenceDate,
-        );
-        uniqueDates["${date.year}-${date.month}-${date.day}"] = date;
-      }
+    for (int day = 1; day <= daysInMonth; day++) {
+      final weekIndex = (day - 1) ~/ 7;
+      if (weekIndex >= 5) continue; // Only track up to 5 weeks
 
-      for (var date in uniqueDates.values) {
-        final attendanceMap = await _storage.getAttendance(date);
-        if (attendanceMap.isNotEmpty) {
-          for (var entry in attendanceMap.entries) {
-            final empId = entry.key;
-            final status = entry.value;
+      final date = DateTime(referenceDate.year, referenceDate.month, day);
+      final attendanceMap = await _storage.getAttendance(date);
 
-            final index = _employees.indexWhere((e) => e.id == empId);
-            if (index != -1) {
-              final emp = _employees[index];
+      if (attendanceMap.isNotEmpty) {
+        for (var entry in attendanceMap.entries) {
+          final empId = entry.key;
+          final record = entry.value; // Map<String, TransportStatus>
 
-              // Verify if this employee's day/week corresponds to this date
-              final empDate = calculateDate(
-                emp.day,
-                weekIndex,
-                referenceDate: referenceDate,
+          final index = _employees.indexWhere((e) => e.id == empId);
+          if (index != -1) {
+            final emp = _employees[index];
+
+            final newPickup = List<TransportStatus>.from(
+              emp.weeklyPickupStatus,
+            );
+            final newDropoff = List<TransportStatus>.from(
+              emp.weeklyDropoffStatus,
+            );
+            bool changed = false;
+
+            if (record.containsKey('pickup') && weekIndex < newPickup.length) {
+              newPickup[weekIndex] = record['pickup']!;
+              changed = true;
+            }
+            if (record.containsKey('dropoff') &&
+                weekIndex < newDropoff.length) {
+              newDropoff[weekIndex] = record['dropoff']!;
+              changed = true;
+            }
+
+            if (changed) {
+              _employees[index] = emp.copyWith(
+                weeklyPickupStatus: newPickup,
+                weeklyDropoffStatus: newDropoff,
               );
-
-              if (empDate.year == date.year &&
-                  empDate.month == date.month &&
-                  empDate.day == date.day) {
-                final newWeeks = List<TransportStatus>.from(emp.weeklyStatus);
-                // Ensure list is large enough (rare edge case if we go beyond initial 5)
-                if (weekIndex < newWeeks.length) {
-                  newWeeks[weekIndex] = status;
-                  _employees[index] = emp.copyWith(weeklyStatus: newWeeks);
-                }
-              }
             }
           }
         }
@@ -250,10 +325,6 @@ class AppState with ChangeNotifier {
 
     // Add weeks
     return firstOccurrence.add(Duration(days: weekIndex * 7));
-  }
-
-  Future<void> saveDailyShift(DateTime date, List<Employee> employees) async {
-    await _storage.saveDailyShift(date, employees);
   }
 
   Future<void> updateEmployee(Employee updatedEmp) async {

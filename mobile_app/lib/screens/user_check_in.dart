@@ -18,6 +18,7 @@ class _UserCheckInState extends State<UserCheckIn> {
   DateTime selectedMonth = DateTime.now(); // Default to current month
   int selectedWeek = 0;
   String searchTerm = '';
+  bool isPickup = true;
 
   @override
   void initState() {
@@ -59,6 +60,7 @@ class _UserCheckInState extends State<UserCheckIn> {
     final data = appState.employees;
 
     // Filter Logic
+    // Filter Logic
     final filtered = data.filter((e) => e.day == selectedDay).toList();
     filtered.sort((a, b) => a.time.compareTo(b.time));
 
@@ -74,8 +76,10 @@ class _UserCheckInState extends State<UserCheckIn> {
 
     // Grouping Logic
     final groups = <String, List<Employee>>{};
+
     for (var e in searchFiltered) {
-      final hour = e.time.split(':')[0];
+      final timeStr = e.time;
+      final hour = timeStr.split(':')[0];
       final key = "$hour:00 - $hour:59";
       groups.putIfAbsent(key, () => []).add(e);
     }
@@ -105,9 +109,9 @@ class _UserCheckInState extends State<UserCheckIn> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: Theme.of(context).cardColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border.all(color: Theme.of(context).dividerColor),
           ),
           child: Column(
             children: [
@@ -138,11 +142,72 @@ class _UserCheckInState extends State<UserCheckIn> {
                     icon: const Icon(LucideIcons.printer, color: Colors.blue),
                     tooltip: "Export PDF",
                     onPressed: () async {
-                      // Export PDF
-                      await PdfExportService.generateAndPrint(
-                        selectedMonth,
-                        data, // Use full list or filtered? Usually full month report.
-                        context.read<AppState>(),
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text("Select Report Type"),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ListTile(
+                                leading: const Icon(LucideIcons.calendar),
+                                title: const Text("Monthly Report"),
+                                onTap: () async {
+                                  Navigator.pop(context);
+                                  await PdfExportService.generateMonthlyReport(
+                                    selectedMonth,
+                                    data,
+                                    context.read<AppState>(),
+                                  );
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(LucideIcons.calendarDays),
+                                title: Text(
+                                  "Weekly Report (Week ${selectedWeek + 1})",
+                                ),
+                                onTap: () async {
+                                  Navigator.pop(context);
+                                  await PdfExportService.generateWeeklyReport(
+                                    selectedMonth,
+                                    selectedWeek,
+                                    data,
+                                    context.read<AppState>(),
+                                  );
+                                },
+                              ),
+                              ListTile(
+                                leading: const Icon(LucideIcons.clock),
+                                title: const Text("Daily Report"),
+                                subtitle: Text(
+                                  "${selectedDay.name} of Week ${selectedWeek + 1}",
+                                ),
+                                onTap: () async {
+                                  Navigator.pop(context);
+                                  // Calculate specific date for daily report
+                                  final date = context
+                                      .read<AppState>()
+                                      .calculateDate(
+                                        selectedDay,
+                                        selectedWeek,
+                                        referenceDate: selectedMonth,
+                                      );
+                                  await PdfExportService.generateDailyReport(
+                                    date,
+                                    selectedWeek,
+                                    data,
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("Cancel"),
+                            ),
+                          ],
+                        ),
                       );
                     },
                   ),
@@ -163,9 +228,9 @@ class _UserCheckInState extends State<UserCheckIn> {
                         label: Text(day.name),
                         backgroundColor: isSelected
                             ? const Color(0xFF1E293B)
-                            : Colors.grey[50],
+                            : Colors.grey[200],
                         labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : Colors.grey[600],
+                          color: isSelected ? Colors.white : Colors.black,
                         ),
                         onPressed: () => setState(() => selectedDay = day),
                         side: BorderSide.none,
@@ -197,9 +262,14 @@ class _UserCheckInState extends State<UserCheckIn> {
                           ),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? Theme.of(context).primaryColor
-                                : Colors.grey[100],
+                                ? Colors.blue
+                                : Theme.of(context).cardColor,
                             borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.blue
+                                  : Theme.of(context).dividerColor,
+                            ),
                           ),
                           child: Text(
                             "WEEK ${index + 1}",
@@ -208,7 +278,9 @@ class _UserCheckInState extends State<UserCheckIn> {
                               fontWeight: FontWeight.bold,
                               color: isSelected
                                   ? Colors.white
-                                  : Colors.grey[500],
+                                  : Theme.of(
+                                      context,
+                                    ).textTheme.bodyMedium?.color,
                             ),
                           ),
                         ),
@@ -228,7 +300,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                     color: Colors.grey,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: Theme.of(context).cardColor,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
@@ -315,6 +387,80 @@ class _UserCheckInState extends State<UserCheckIn> {
 
         const SizedBox(height: 16),
 
+        // Toggle Switch (Slider)
+        Container(
+          height: 48,
+          decoration: BoxDecoration(
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.grey[800]
+                : Colors.grey[200],
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Stack(
+            children: [
+              AnimatedAlign(
+                duration: const Duration(milliseconds: 200),
+                alignment: isPickup
+                    ? Alignment.centerLeft
+                    : Alignment.centerRight,
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.5 - 32,
+                  margin: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: isPickup
+                        ? Colors.green.shade200
+                        : Colors.red.shade200,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => isPickup = true),
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(
+                        child: Text(
+                          "Pickup",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => isPickup = false),
+                      behavior: HitTestBehavior.opaque,
+                      child: Center(
+                        child: Text(
+                          "Drop-off",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
         // List
         if (searchFiltered.isEmpty)
           const Padding(
@@ -350,7 +496,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          "$key Shift",
+                          isPickup ? "$key - Pickup" : "$key - Drop-off",
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.blue,
@@ -390,8 +536,11 @@ class _UserCheckInState extends State<UserCheckIn> {
                   // Items
                   ...employees.map((emp) {
                     final companyColor = _getCompanyColor(emp.company);
-                    final status = emp.weeklyStatus.length > selectedWeek
-                        ? emp.weeklyStatus[selectedWeek]
+                    final statusList = isPickup
+                        ? emp.weeklyPickupStatus
+                        : emp.weeklyDropoffStatus;
+                    final status = statusList.length > selectedWeek
+                        ? statusList[selectedWeek]
                         : TransportStatus.PENDING;
 
                     return Padding(
@@ -399,12 +548,14 @@ class _UserCheckInState extends State<UserCheckIn> {
                       child: Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).cardColor,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade100),
+                          border: Border.all(
+                            color: Theme.of(context).dividerColor,
+                          ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.grey.shade100,
+                              color: Colors.black.withOpacity(0.05),
                               blurRadius: 4,
                               offset: const Offset(0, 2),
                             ),
@@ -607,6 +758,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                                                     emp,
                                                     appState,
                                                     selectedWeek,
+                                                    isPickup,
                                                   ),
                                             ),
                                           ),
@@ -624,6 +776,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                                                     emp.id,
                                                     selectedWeek,
                                                     TransportStatus.ABSENT,
+                                                    isPickup: isPickup,
                                                   ),
                                             ),
                                           ),
@@ -642,6 +795,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                                                     emp.id,
                                                     selectedWeek,
                                                     TransportStatus.SELF_TRAVEL,
+                                                    isPickup: isPickup,
                                                   ),
                                             ),
                                           ),
@@ -670,6 +824,7 @@ class _UserCheckInState extends State<UserCheckIn> {
     Employee emp,
     AppState appState,
     int selectedWeek,
+    bool isPickup,
   ) {
     String? selectedHealthCondition;
     final temperatureController = TextEditingController();
@@ -740,12 +895,12 @@ class _UserCheckInState extends State<UserCheckIn> {
                 const SizedBox(height: 20),
 
                 // Question 1: Health Condition
-                const Text(
+                Text(
                   '1. Health Condition',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -782,12 +937,12 @@ class _UserCheckInState extends State<UserCheckIn> {
                 const SizedBox(height: 24),
 
                 // Question 2: Body Temperature
-                const Text(
+                Text(
                   '2. Body Temperature',
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: Theme.of(context).textTheme.bodyLarge?.color,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -809,7 +964,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                       color: Colors.blue,
                     ),
                     filled: true,
-                    fillColor: Colors.grey[50],
+                    fillColor: Theme.of(context).cardColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(color: Colors.grey.shade300),
@@ -852,55 +1007,38 @@ class _UserCheckInState extends State<UserCheckIn> {
             ),
             ElevatedButton(
               onPressed: () async {
-                // Validate inputs
-                if (selectedHealthCondition == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please select health condition'),
-                      backgroundColor: Colors.orange,
-                    ),
+                // Parse temperature if provided
+                double? temperature;
+                if (temperatureController.text.trim().isNotEmpty) {
+                  temperature = double.tryParse(
+                    temperatureController.text.trim(),
                   );
-                  return;
-                }
-
-                if (temperatureController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter body temperature'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                  return;
-                }
-
-                final temperature = double.tryParse(
-                  temperatureController.text.trim(),
-                );
-                if (temperature == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Please enter a valid temperature'),
-                      backgroundColor: Colors.orange,
-                    ),
-                  );
-                  return;
+                  if (temperature == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid temperature'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
                 }
 
                 // Save the context before async operations
                 final scaffoldMessenger = ScaffoldMessenger.of(context);
                 final employeeName = emp.name;
-                final healthCondition = selectedHealthCondition!;
 
                 // Close dialog
                 Navigator.of(dialogContext).pop();
 
-                // Save attendance with health check data
+                // Save attendance with health check data (can be null)
                 await appState.saveAttendanceWithHealth(
                   emp.id,
                   selectedWeek,
                   TransportStatus.DROPPED_OFF,
-                  healthCondition,
+                  selectedHealthCondition,
                   temperature,
+                  isPickup: isPickup,
                 );
 
                 // Update local status
@@ -908,15 +1046,27 @@ class _UserCheckInState extends State<UserCheckIn> {
                   emp.id,
                   selectedWeek,
                   TransportStatus.DROPPED_OFF,
+                  isPickup: isPickup,
                 );
 
                 // Show success message with health info (using saved messenger)
                 scaffoldMessenger.showSnackBar(
                   SnackBar(
-                    content: Text(
-                      'Health check completed for $employeeName\n'
-                      'Condition: $healthCondition | Temp: ${temperature.toStringAsFixed(1)}°C',
-                    ),
+                    content: (() {
+                      String msg = 'Attendance marked for $employeeName';
+                      if (selectedHealthCondition != null ||
+                          temperature != null) {
+                        msg += '\n';
+                        if (selectedHealthCondition != null) {
+                          msg += 'Condition: $selectedHealthCondition';
+                        }
+                        if (temperature != null) {
+                          if (selectedHealthCondition != null) msg += ' | ';
+                          msg += 'Temp: ${temperature.toStringAsFixed(1)}°C';
+                        }
+                      }
+                      return Text(msg);
+                    })(),
                     backgroundColor: Colors.green,
                     duration: const Duration(seconds: 3),
                   ),
@@ -985,7 +1135,7 @@ class _StatusBtn extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? activeColor : Colors.white,
+          color: isActive ? activeColor : Theme.of(context).cardColor,
           border: Border.all(
             color: isActive ? activeColor : Colors.grey.shade300,
           ),
@@ -1052,7 +1202,9 @@ class _HealthOptionChip extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.1) : Colors.grey[50],
+          color: isSelected
+              ? color.withOpacity(0.1)
+              : Theme.of(context).cardColor,
           border: Border.all(
             color: isSelected ? color : Colors.grey.shade300,
             width: isSelected ? 2 : 1,
@@ -1062,13 +1214,21 @@ class _HealthOptionChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: isSelected ? color : Colors.grey[600]),
+            Icon(
+              icon,
+              size: 20,
+              color: isSelected
+                  ? color
+                  : Theme.of(context).textTheme.bodyMedium?.color,
+            ),
             const SizedBox(width: 8),
             Text(
               label,
               style: TextStyle(
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? color : Colors.grey[700],
+                color: isSelected
+                    ? color
+                    : Theme.of(context).textTheme.bodyMedium?.color,
                 fontSize: 14,
               ),
             ),

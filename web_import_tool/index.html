@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transport Data Bulk Import Tool</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>🚌 Transport Data Bulk Import</h1>
+            <p>Import employee transport schedules to Firebase</p>
+        </header>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Select Day & Import Data</h2>
+            </div>
+            <div class="card-body">
+                <!-- Day Selector -->
+                <div class="form-group">
+                    <label for="daySelector">Select Day:</label>
+                    <select id="daySelector" class="select-input">
+                        <option value="">-- Choose a day --</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                        <option value="Saturday">Saturday</option>
+                        <option value="Sunday">Sunday</option>
+                    </select>
+                </div>
+
+                <!-- Data Input Methods -->
+                <div class="input-methods">
+                    <div class="method-tabs">
+                        <button class="tab-btn active" data-tab="preset">Preset Data</button>
+                        <button class="tab-btn" data-tab="manual">Manual Entry</button>
+                        <button class="tab-btn" data-tab="csv">CSV Upload</button>
+                    </div>
+
+                    <!-- Preset Data Tab -->
+                    <div id="presetTab" class="tab-content active">
+                        <p class="tab-description">Select a day to load pre-configured employee data</p>
+                    </div>
+
+                    <!-- Manual Entry Tab -->
+                    <div id="manualTab" class="tab-content">
+                        <p class="tab-description">Add employees one by one</p>
+                        <form id="manualEntryForm" class="manual-form">
+                            <div class="form-row">
+                                <div class="form-field">
+                                    <label>Serial No.</label>
+                                    <input type="text" id="serialNo" placeholder="e.g., 54">
+                                </div>
+                                <div class="form-field">
+                                    <label>Name *</label>
+                                    <input type="text" id="employeeName" placeholder="Employee name" required>
+                                </div>
+                                <div class="form-field">
+                                    <label>Pickup Location *</label>
+                                    <input type="text" id="pickupLocation" placeholder="e.g., Eki" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-field">
+                                    <label>Destination *</label>
+                                    <input type="text" id="company" placeholder="e.g., Akagi" required>
+                                </div>
+                                <div class="form-field">
+                                    <label>Time *</label>
+                                    <input type="text" id="time" placeholder="e.g., 9:20" required>
+                                </div>
+                                <div class="form-field">
+                                    <button type="submit" class="btn-add">
+                                        <span>➕</span> Add Employee
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- CSV Upload Tab -->
+                    <div id="csvTab" class="tab-content">
+                        <p class="tab-description">Upload a CSV file with employee data</p>
+                        <div class="csv-upload-area">
+                            <input type="file" id="csvFileInput" accept=".csv" hidden>
+                            <button class="btn-upload" onclick="document.getElementById('csvFileInput').click()">
+                                📁 Choose CSV File
+                            </button>
+                            <p class="upload-hint">CSV format: Serial No, Name, Pickup Location, Destination, Time</p>
+                            <p class="upload-hint">Example: 54,Rekha,Eki,akagi,9:20</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Preview -->
+                <div id="dataPreview" class="data-preview hidden">
+                    <div class="preview-header">
+                        <h3>Data Preview & Edit</h3>
+                        <button id="clearAllBtn" class="btn-clear">🗑️ Clear All</button>
+                    </div>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <span class="stat-label">Total Employees</span>
+                            <span class="stat-value" id="totalCount">0</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-label">Time Shifts</span>
+                            <span class="stat-value" id="shiftCount">0</span>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="previewTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Serial No.</th>
+                                    <th>Name</th>
+                                    <th>Pickup Location</th>
+                                    <th>Destination</th>
+                                    <th>Time</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewTableBody">
+                                <!-- Data will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Import Button -->
+                <div class="action-section">
+                    <button id="importBtn" class="btn-primary" disabled>
+                        <span class="btn-icon">☁️</span>
+                        <span class="btn-text">Import to Firebase</span>
+                    </button>
+                    <div id="progressSection" class="progress-section hidden">
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill"></div>
+                        </div>
+                        <p id="progressText" class="progress-text">Importing...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notification -->
+        <div id="notification" class="notification hidden">
+            <span id="notificationText"></span>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+    <!-- App Scripts -->
+    <script src="firebase-config.js"></script>
+    <script src="data/saturday-data.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
