@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/employee.dart';
@@ -213,7 +213,7 @@ class _AdminPanelState extends State<AdminPanel> {
                     child: Row(
                       children: [
                         const Icon(
-                          LucideIcons.clock,
+                          SolarIconsOutline.clockCircle,
                           size: 16,
                           color: Colors.blue,
                         ),

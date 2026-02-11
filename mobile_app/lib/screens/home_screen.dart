@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../providers/app_state.dart';
 import 'user_check_in.dart';
 import 'admin_panel.dart';
-import '../widgets/stats_overview.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -90,14 +89,14 @@ class HomeScreen extends StatelessWidget {
         actions: [
           _ModeToggleButton(
             label: 'Driver',
-            icon: LucideIcons.bus,
+            icon: SolarIconsOutline.bus,
             isActive: appState.viewMode == AppViewMode.USER,
             onTap: () => appState.setViewMode(AppViewMode.USER),
           ),
           const SizedBox(width: 8),
           _ModeToggleButton(
             label: 'Admin',
-            icon: LucideIcons.shield,
+            icon: SolarIconsOutline.shieldCheck,
             isActive: appState.viewMode == AppViewMode.ADMIN,
             onTap: () {
               if (appState.viewMode == AppViewMode.ADMIN) return;
@@ -247,46 +246,48 @@ class _SideDrawer extends StatelessWidget {
             MediaQuery.of(context).platformBrightness == Brightness.dark);
 
     return Drawer(
-      child: Column(
-        children: [
-          DrawerHeader(
-            decoration: BoxDecoration(color: Theme.of(context).primaryColor),
-            child: const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(LucideIcons.bus, size: 48, color: Colors.white),
-                  SizedBox(height: 12),
-                  Text(
-                    'Transport Scheduler',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+      child: SafeArea(
+        child: Column(
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(color: Theme.of(context).primaryColor),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(SolarIconsOutline.bus, size: 48, color: Colors.white),
+                    SizedBox(height: 12),
+                    Text(
+                      'Transport Scheduler',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-          ListTile(
-            leading: const Icon(LucideIcons.moon),
-            title: const Text('Dark Mode'),
-            trailing: Switch(
-              value: isDark,
-              onChanged: (val) {
-                appState.setThemeMode(val ? ThemeMode.dark : ThemeMode.light);
-              },
+            ListTile(
+              leading: const Icon(SolarIconsOutline.moon),
+              title: const Text('Dark Mode'),
+              trailing: Switch(
+                value: isDark,
+                onChanged: (val) {
+                  appState.setThemeMode(val ? ThemeMode.dark : ThemeMode.light);
+                },
+              ),
             ),
-          ),
-          const Spacer(),
-          ListTile(
-            leading: const Icon(LucideIcons.info),
-            title: const Text('Version 1.0.0'),
-            enabled: false,
-          ),
-          const SizedBox(height: 20),
-        ],
+            const Spacer(),
+            const ListTile(
+              leading: Icon(SolarIconsOutline.infoCircle),
+              title: Text('Version 1.0.0'),
+              enabled: false,
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }

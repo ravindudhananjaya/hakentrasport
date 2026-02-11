@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:solar_icons/solar_icons.dart';
 import '../models/employee.dart';
 
 class StatsOverview extends StatelessWidget {
@@ -36,25 +36,25 @@ class StatsOverview extends StatelessWidget {
         _StatCard(
           title: "Total Passengers",
           value: totalPax.toString(),
-          icon: LucideIcons.users,
+          icon: SolarIconsOutline.usersGroupRounded,
           color: Colors.blue,
         ),
         _StatCard(
           title: "Active Today",
           value: "${employees.length}", // Placeholder logic
-          icon: LucideIcons.bus,
+          icon: SolarIconsOutline.bus,
           color: Colors.green,
         ),
         _StatCard(
           title: "On Board",
           value: "$onBoard",
-          icon: LucideIcons.userCheck,
+          icon: SolarIconsOutline.userCheck,
           color: Colors.purple,
         ),
         _StatCard(
           title: "Completion",
           value: "0%",
-          icon: LucideIcons.barChart2,
+          icon: SolarIconsOutline.chart_2,
           color: Colors.amber,
         ),
       ],

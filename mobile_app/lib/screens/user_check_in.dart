@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:solar_icons/solar_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/employee.dart';
 import '../providers/app_state.dart';
@@ -100,289 +100,435 @@ class _UserCheckInState extends State<UserCheckIn> {
       "November",
       "December",
     ];
-    final monthStr =
-        "${monthNames[selectedMonth.month - 1]} ${selectedMonth.year}";
 
     return Column(
       children: [
         // Controls
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Theme.of(context).cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Theme.of(context).dividerColor),
-          ),
-          child: Column(
+        // 1. Month Header & Print
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 8.0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Month Selector
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
+                  IconButton(
+                    icon: const Icon(SolarIconsOutline.altArrowLeft),
+                    onPressed: () => _changeMonth(-1),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Theme.of(context).cardColor,
+                      padding: const EdgeInsets.all(8),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconButton(
-                        icon: const Icon(LucideIcons.chevronLeft),
-                        onPressed: () => _changeMonth(-1),
-                      ),
                       Text(
-                        monthStr,
-                        style: const TextStyle(
-                          fontSize: 16,
+                        monthNames[selectedMonth.month - 1],
+                        style: TextStyle(
+                          fontSize: 20,
                           fontWeight: FontWeight.bold,
+                          color: Theme.of(context).textTheme.bodyLarge?.color,
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(LucideIcons.chevronRight),
-                        onPressed: () => _changeMonth(1),
+                      Text(
+                        "${selectedMonth.year}",
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.color?.withOpacity(0.6),
+                        ),
                       ),
                     ],
                   ),
+                  const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(LucideIcons.printer, color: Colors.blue),
-                    tooltip: "Export PDF",
-                    onPressed: () async {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Select Report Type"),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              ListTile(
-                                leading: const Icon(LucideIcons.calendar),
-                                title: const Text("Monthly Report"),
-                                onTap: () async {
-                                  Navigator.pop(context);
-                                  await PdfExportService.generateMonthlyReport(
-                                    selectedMonth,
-                                    data,
-                                    context.read<AppState>(),
-                                  );
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(LucideIcons.calendarDays),
-                                title: Text(
-                                  "Weekly Report (Week ${selectedWeek + 1})",
-                                ),
-                                onTap: () async {
-                                  Navigator.pop(context);
-                                  await PdfExportService.generateWeeklyReport(
-                                    selectedMonth,
-                                    selectedWeek,
-                                    data,
-                                    context.read<AppState>(),
-                                  );
-                                },
-                              ),
-                              ListTile(
-                                leading: const Icon(LucideIcons.clock),
-                                title: const Text("Daily Report"),
-                                subtitle: Text(
-                                  "${selectedDay.name} of Week ${selectedWeek + 1}",
-                                ),
-                                onTap: () async {
-                                  Navigator.pop(context);
-                                  // Calculate specific date for daily report
-                                  final date = context
-                                      .read<AppState>()
-                                      .calculateDate(
-                                        selectedDay,
-                                        selectedWeek,
-                                        referenceDate: selectedMonth,
-                                      );
-                                  await PdfExportService.generateDailyReport(
-                                    date,
-                                    selectedWeek,
-                                    data,
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("Cancel"),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                    icon: const Icon(SolarIconsOutline.altArrowRight),
+                    onPressed: () => _changeMonth(1),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Theme.of(context).cardColor,
+                      padding: const EdgeInsets.all(8),
+                    ),
                   ),
                 ],
               ),
-              const Divider(),
-              const SizedBox(height: 8),
 
-              // Day Selector
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: DayOfWeek.values.map((day) {
-                    final isSelected = day == selectedDay;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ActionChip(
-                        label: Text(day.name),
-                        backgroundColor: isSelected
-                            ? const Color(0xFF1E293B)
-                            : Colors.grey[200],
-                        labelStyle: TextStyle(
-                          color: isSelected ? Colors.white : Colors.black,
-                        ),
-                        onPressed: () => setState(() => selectedDay = day),
-                        side: BorderSide.none,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Week Selector
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.start, // Align left on mobile
-                  children: List.generate(5, (index) {
-                    final isSelected = index == selectedWeek;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 4.0),
-                      child: GestureDetector(
-                        onTap: () => setState(() => selectedWeek = index),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
+              // Print Button
+              FilledButton.tonalIcon(
+                onPressed: () async {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text("Select Report Type"),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ListTile(
+                            leading: const Icon(SolarIconsOutline.calendar),
+                            title: const Text("Monthly Report"),
+                            onTap: () async {
+                              Navigator.pop(context);
+                              await PdfExportService.generateMonthlyReport(
+                                selectedMonth,
+                                data,
+                                context.read<AppState>(),
+                              );
+                            },
                           ),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? Colors.blue
-                                : Theme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(
-                              color: isSelected
-                                  ? Colors.blue
-                                  : Theme.of(context).dividerColor,
+                          ListTile(
+                            leading: const Icon(SolarIconsOutline.calendarDate),
+                            title: Text(
+                              "Weekly Report (Week ${selectedWeek + 1})",
                             ),
+                            onTap: () async {
+                              Navigator.pop(context);
+                              await PdfExportService.generateWeeklyReport(
+                                selectedMonth,
+                                selectedWeek,
+                                data,
+                                context.read<AppState>(),
+                              );
+                            },
                           ),
-                          child: Text(
-                            "WEEK ${index + 1}",
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: isSelected
-                                  ? Colors.white
-                                  : Theme.of(
-                                      context,
-                                    ).textTheme.bodyMedium?.color,
+                          ListTile(
+                            leading: const Icon(SolarIconsOutline.clockCircle),
+                            title: const Text("Daily Report"),
+                            subtitle: Text(
+                              "${selectedDay.name} of Week ${selectedWeek + 1}",
                             ),
+                            onTap: () async {
+                              Navigator.pop(context);
+                              // Calculate specific date for daily report
+                              final date = context
+                                  .read<AppState>()
+                                  .calculateDate(
+                                    selectedDay,
+                                    selectedWeek,
+                                    referenceDate: selectedMonth,
+                                  );
+                              await PdfExportService.generateDailyReport(
+                                date,
+                                selectedWeek,
+                                data,
+                              );
+                            },
                           ),
-                        ),
+                        ],
                       ),
-                    );
-                  }),
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Search
-              TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search passenger...',
-                  prefixIcon: const Icon(
-                    LucideIcons.search,
-                    size: 20,
-                    color: Colors.grey,
-                  ),
-                  filled: true,
-                  fillColor: Theme.of(context).cardColor,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
-                ),
-                onChanged: (val) => setState(() => searchTerm = val),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Date Display
-              Builder(
-                builder: (context) {
-                  final date = appState.calculateDate(
-                    selectedDay,
-                    selectedWeek,
-                    referenceDate: selectedMonth, // Pass selected month
-                  );
-                  // Simple Format: "Tuesday, Jan 20"
-                  // Or standard: YYYY-MM-DD
-                  // Let's do readable
-                  final months = [
-                    "Jan",
-                    "Feb",
-                    "Mar",
-                    "Apr",
-                    "May",
-                    "Jun",
-                    "Jul",
-                    "Aug",
-                    "Sep",
-                    "Oct",
-                    "Nov",
-                    "Dec",
-                  ];
-                  final dateStr =
-                      "${selectedDay.name}, ${months[date.month - 1]} ${date.day}";
-
-                  return Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.05),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue.withOpacity(0.2)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          LucideIcons.calendar,
-                          size: 16,
-                          color: Colors.blue,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "Viewing Date: ",
-                          style: TextStyle(
-                            color: Colors.blue.shade800,
-                            fontSize: 13,
-                          ),
-                        ),
-                        Text(
-                          dateStr,
-                          style: TextStyle(
-                            color: Colors.blue.shade800,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text("Cancel"),
                         ),
                       ],
                     ),
                   );
                 },
+                icon: const Icon(SolarIconsOutline.printer, size: 18),
+                label: const Text("Print"),
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.blue.withOpacity(0.1),
+                  foregroundColor: Colors.blue,
+                  elevation: 0,
+                ),
               ),
             ],
           ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 2. Week Selector (Segmented Look)
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: List.generate(5, (index) {
+              final isSelected = index == selectedWeek;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8.0),
+                child: InkWell(
+                  onTap: () => setState(() => selectedWeek = index),
+                  borderRadius: BorderRadius.circular(20),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? Theme.of(context).primaryColor
+                          : Theme.of(context).cardColor,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected
+                            ? Theme.of(context).primaryColor
+                            : Theme.of(context).dividerColor,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: Theme.of(
+                                  context,
+                                ).primaryColor.withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ]
+                          : [],
+                    ),
+                    child: Text(
+                      "Week ${index + 1}",
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : Theme.of(context).textTheme.bodyMedium?.color,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // 3. Day Selector (Horizontal Values)
+        SizedBox(
+          height: 80,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: DayOfWeek.values.length,
+            separatorBuilder: (ctx, i) => const SizedBox(width: 12),
+            itemBuilder: (ctx, index) {
+              final day = DayOfWeek.values[index];
+              final isSelected = day == selectedDay;
+
+              // Calculate date for this day in the current week/month view if needed
+              // For simplicity, just show Day Name + generic indicator
+
+              return InkWell(
+                onTap: () => setState(() => selectedDay = day),
+                borderRadius: BorderRadius.circular(16),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 60,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(context).primaryColor
+                        : Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.transparent
+                          : Theme.of(context).dividerColor,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: Theme.of(
+                                context,
+                              ).primaryColor.withOpacity(0.3),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        day.name.substring(0, 3).toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: isSelected
+                              ? Colors.white.withOpacity(0.8)
+                              : Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected ? Colors.white : Colors.transparent,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        // 4. Search Bar & Date Info Row
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).cardColor,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).brightness == Brightness.light
+                        ? Colors.grey.withOpacity(0.3)
+                        : Colors.transparent,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search passenger...',
+                    hintStyle: TextStyle(
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? Colors.grey[600]
+                          : Colors.grey[400],
+                      fontSize: 14,
+                    ),
+                    prefixIcon: Icon(
+                      SolarIconsOutline.magnifier,
+                      size: 20,
+                      color: Theme.of(context).brightness == Brightness.light
+                          ? Colors.grey[600]
+                          : Colors.grey[400],
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                  ),
+                  onChanged: (val) => setState(() => searchTerm = val),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).textTheme.bodyMedium?.color,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 12),
+
+        // Date Display (Subtle)
+        Builder(
+          builder: (context) {
+            final date = appState.calculateDate(
+              selectedDay,
+              selectedWeek,
+              referenceDate: selectedMonth,
+            );
+            final months = [
+              "Jan",
+              "Feb",
+              "Mar",
+              "Apr",
+              "May",
+              "Jun",
+              "Jul",
+              "Aug",
+              "Sep",
+              "Oct",
+              "Nov",
+              "Dec",
+            ];
+            final dateStr =
+                "${selectedDay.name}, ${months[date.month - 1]} ${date.day}, ${date.year}";
+
+            return Align(
+              alignment: Alignment.centerLeft,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 4.0),
+                child: InkWell(
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: date,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2030),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        // 1. Update Month
+                        if (picked.month != selectedMonth.month ||
+                            picked.year != selectedMonth.year) {
+                          selectedMonth = DateTime(
+                            picked.year,
+                            picked.month,
+                            1,
+                          );
+                          context.read<AppState>().loadAttendanceForMonth(
+                            selectedMonth,
+                          );
+                        }
+
+                        // 2. Update Day
+                        // picked.weekday: 1=Mon, 7=Sun
+                        if (picked.weekday <= 7) {
+                          selectedDay = DayOfWeek.values[picked.weekday - 1];
+                        }
+
+                        // 3. Update Week
+                        // This is tricky because weeks are 0-4 based on day of month.
+                        // Ideally, we reverse the logic: (day - 1) ~/ 7
+                        selectedWeek = (picked.day - 1) ~/ 7;
+                        if (selectedWeek > 4)
+                          selectedWeek = 4; // Cap at 5 weeks
+                      });
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8.0,
+                      vertical: 4.0,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          SolarIconsOutline.calendar,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          dateStr,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Theme.of(context).colorScheme.primary,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Theme.of(
+                              context,
+                            ).colorScheme.primary.withOpacity(0.5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
         ),
 
         const SizedBox(height: 16),
@@ -490,7 +636,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                     child: Row(
                       children: [
                         const Icon(
-                          LucideIcons.clock,
+                          SolarIconsOutline.clockCircle,
                           size: 16,
                           color: Colors.blue,
                         ),
@@ -682,7 +828,8 @@ class _UserCheckInState extends State<UserCheckIn> {
                                                                     .circle,
                                                               ),
                                                           child: const Icon(
-                                                            LucideIcons.phone,
+                                                            SolarIconsOutline
+                                                                .phone,
                                                             size: 18,
                                                             color: Colors.green,
                                                           ),
@@ -695,7 +842,8 @@ class _UserCheckInState extends State<UserCheckIn> {
                                                 Row(
                                                   children: [
                                                     const Icon(
-                                                      LucideIcons.mapPin,
+                                                      SolarIconsOutline
+                                                          .mapPoint,
                                                       size: 12,
                                                       color: Colors.grey,
                                                     ),
@@ -718,7 +866,8 @@ class _UserCheckInState extends State<UserCheckIn> {
                                                 Row(
                                                   children: [
                                                     Icon(
-                                                      LucideIcons.building,
+                                                      SolarIconsOutline
+                                                          .buildings,
                                                       size: 12,
                                                       color: companyColor
                                                           .withOpacity(0.7),
@@ -747,26 +896,63 @@ class _UserCheckInState extends State<UserCheckIn> {
                                           Expanded(
                                             child: _StatusBtn(
                                               label: "Ok",
-                                              icon: LucideIcons.check,
+                                              icon:
+                                                  SolarIconsOutline.checkCircle,
                                               isActive:
                                                   status ==
                                                   TransportStatus.DROPPED_OFF,
                                               color: Colors.green,
-                                              onTap: () =>
+                                              onTap: () async {
+                                                if (isPickup) {
                                                   _showHealthCheckDialog(
                                                     context,
                                                     emp,
                                                     appState,
                                                     selectedWeek,
                                                     isPickup,
-                                                  ),
+                                                  );
+                                                } else {
+                                                  // Drop-off: Direct save without health check
+                                                  await appState
+                                                      .saveAttendanceWithHealth(
+                                                        emp.id,
+                                                        selectedWeek,
+                                                        TransportStatus
+                                                            .DROPPED_OFF,
+                                                        null,
+                                                        null,
+                                                        isPickup: isPickup,
+                                                      );
+                                                  appState.updateEmployeeStatus(
+                                                    emp.id,
+                                                    selectedWeek,
+                                                    TransportStatus.DROPPED_OFF,
+                                                    isPickup: isPickup,
+                                                  );
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    SnackBar(
+                                                      content: Text(
+                                                        'Marked as Dropped Off: ${emp.name}',
+                                                      ),
+                                                      backgroundColor:
+                                                          Colors.green,
+                                                      duration: const Duration(
+                                                        seconds: 1,
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              },
                                             ),
                                           ),
                                           const SizedBox(width: 8),
                                           Expanded(
                                             child: _StatusBtn(
                                               label: "Absent",
-                                              icon: LucideIcons.x,
+                                              icon:
+                                                  SolarIconsOutline.closeCircle,
                                               isActive:
                                                   status ==
                                                   TransportStatus.ABSENT,
@@ -785,7 +971,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                                           Expanded(
                                             child: _StatusBtn(
                                               label: "Self",
-                                              icon: LucideIcons.car,
+                                              icon: SolarIconsOutline.bus,
                                               isActive:
                                                   status ==
                                                   TransportStatus.SELF_TRAVEL,
@@ -846,7 +1032,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
-                  LucideIcons.heartPulse,
+                  SolarIconsOutline.heartPulse,
                   color: Colors.green,
                   size: 24,
                 ),
@@ -910,7 +1096,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                   children: [
                     _HealthOptionChip(
                       label: 'Good',
-                      icon: LucideIcons.smile,
+                      icon: SolarIconsOutline.smileCircle,
                       color: Colors.green,
                       isSelected: selectedHealthCondition == 'Good',
                       onTap: () =>
@@ -918,7 +1104,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                     ),
                     _HealthOptionChip(
                       label: 'Not Good',
-                      icon: LucideIcons.frown,
+                      icon: SolarIconsOutline.sadSquare,
                       color: Colors.orange,
                       isSelected: selectedHealthCondition == 'Not Good',
                       onTap: () =>
@@ -926,7 +1112,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                     ),
                     _HealthOptionChip(
                       label: 'Diarrhea',
-                      icon: LucideIcons.alertCircle,
+                      icon: SolarIconsOutline.dangerCircle,
                       color: Colors.red,
                       isSelected: selectedHealthCondition == 'Diarrhea',
                       onTap: () =>
@@ -960,7 +1146,7 @@ class _UserCheckInState extends State<UserCheckIn> {
                       color: Colors.blue,
                     ),
                     prefixIcon: const Icon(
-                      LucideIcons.thermometer,
+                      SolarIconsOutline.thermometer,
                       color: Colors.blue,
                     ),
                     filled: true,
