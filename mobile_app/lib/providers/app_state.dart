@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/employee.dart';
 import '../services/storage_service.dart';
 import '../constants.dart';
@@ -30,6 +31,11 @@ class AppState with ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final themeIndex =
+          prefs.getInt('theme_mode') ?? 0; // Default to system (0)
+      _themeMode = ThemeMode.values[themeIndex];
+
       _employees = await _storage.getEmployees();
 
       // Load Dropdowns
@@ -87,9 +93,11 @@ class AppState with ChangeNotifier {
     notifyListeners();
   }
 
-  void setThemeMode(ThemeMode mode) {
+  Future<void> setThemeMode(ThemeMode mode) async {
     _themeMode = mode;
     notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('theme_mode', mode.index);
   }
 
   Future<void> updateEmployeeStatus(

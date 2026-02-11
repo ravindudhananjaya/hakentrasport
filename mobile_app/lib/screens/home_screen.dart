@@ -239,7 +239,12 @@ class _SideDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
-    final isDark = appState.themeMode == ThemeMode.dark;
+
+    // Determine the effective brightness
+    final isDark =
+        appState.themeMode == ThemeMode.dark ||
+        (appState.themeMode == ThemeMode.system &&
+            MediaQuery.of(context).platformBrightness == Brightness.dark);
 
     return Drawer(
       child: Column(
